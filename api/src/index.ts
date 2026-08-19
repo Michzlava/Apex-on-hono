@@ -6,9 +6,9 @@ import dashboardRoutes from './routes/dashboard'
 import newsRoutes from './routes/news'
 import depositMethodsRoutes from './routes/deposit-methods'
 import depositRoutes from './routes/deposits'
+import tradeRoutes from './routes/trade'
 import { authMiddleware } from './middleware/auth'
 import { createDb } from './db/client'
-import tradeRoutes from './routes/trade';
 
 const app = new Hono()
 
@@ -49,9 +49,10 @@ app.route('/api/admin/deposit-methods', depositMethodsRoutes)
 // 6. Protected API routes
 app.use('/api/user/*', authMiddleware)
 app.use('/api/admin/*', authMiddleware)
+app.use('/api/transaction/*', authMiddleware)
 app.route('/api/user/dashboard', dashboardRoutes)
 app.route('/api/user/deposits', depositRoutes)
-app.route('/api/transaction/trade', tradeRoutes);
+app.route('/api/transaction/trade', tradeRoutes)
 
 // 7. SPA Catch-all (MUST BE LAST)
 app.get('*', (c) => {
