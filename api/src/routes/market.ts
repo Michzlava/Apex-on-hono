@@ -1,13 +1,13 @@
 import { Hono } from 'hono';
-import { db } from '../db/client';
 import { marketPrices } from '../db/schema';
 import { eq } from 'drizzle-orm';
 
 const app = new Hono();
 
 app.get('/', async (c) => {
+  const db = c.get('db');
+
   try {
-    // Fetch active assets from Neon DB
     const assets = await db
       .select()
       .from(marketPrices)
@@ -15,7 +15,6 @@ app.get('/', async (c) => {
       .orderBy(marketPrices.sortOrder)
       .limit(6);
 
-    // Mock live prices (since DB only stores metadata)
     const mockPrices: Record<string, { price: number; changePercent: number }> = {
       BTC: { price: 67420.50, changePercent: 2.38 },
       ETH: { price: 3512.10, changePercent: 3.01 },
@@ -25,7 +24,6 @@ app.get('/', async (c) => {
       TSLA: { price: 248.10, changePercent: -0.87 },
     };
 
-    // Combine DB metadata with mock prices
     const result = assets.map(asset => ({
       symbol: asset.symbol,
       name: asset.name,
@@ -34,11 +32,10 @@ app.get('/', async (c) => {
       changePercent: mockPrices[asset.symbol]?.changePercent || 0,
     }));
 
-    // If DB is empty, this returns [] and the frontend gracefully falls back to its hardcoded MARKETS array
     return c.json(result);
   } catch (error) {
     console.error('Market fetch error:', error);
-    return c.json([]); 
+    return c.json([]);
   }
 });
 
