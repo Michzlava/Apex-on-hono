@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Logo } from "../components/Logo";
+import { useAuth } from "../context/AuthContext";
 import "./login.css";
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { refetch } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [form, setForm] = useState({ email: "", password: "" });
@@ -27,7 +29,9 @@ export default function LoginPage() {
       if (!res.ok || data?.error) {
         setError(data?.error || "Invalid credentials");
       } else {
-        // Redirect to dashboard on success
+        // Refresh auth context so `user` is populated before navigating,
+        // otherwise protected routes may briefly see user: null and bounce back.
+        await refetch();
         navigate('/dashboard');
       }
     } catch (err) {
