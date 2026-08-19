@@ -1,7 +1,9 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import marketRoutes from './routes/market'
-import authRoutes from './routes/auth' // <-- ADDED
+import authRoutes from './routes/auth'
+import dashboardRoutes from './routes/dashboard'
+import { authMiddleware } from './middleware/auth'
 
 const app = new Hono()
 
@@ -12,8 +14,12 @@ app.use('*', cors({
 
 app.get('/', (c) => c.json({ status: 'ok', message: 'Apex API is running!' }))
 
-// Routes
+// Public routes
+app.route('/api/auth', authRoutes)
 app.route('/api/market', marketRoutes)
-app.route('/api/auth', authRoutes) // <-- ADDED
+
+// Protected routes
+app.use('/api/user/*', authMiddleware)
+app.route('/api/user/dashboard', dashboardRoutes)
 
 export default app
