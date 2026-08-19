@@ -1,15 +1,15 @@
 import { Hono } from 'hono';
-import { db } from '../db/client';
 import { users, transactions, positions, notifications, activityLogs, deposits } from '../db/schema';
-import { eq, desc, and, sum, sql } from 'drizzle-orm';
+import { eq, desc, and, sum } from 'drizzle-orm';
 import { createId } from '@paralleldrive/cuid2';
 
 const app = new Hono();
 
-// GET /api/user/dashboard - Fetch dashboard data
+// GET /api/user/dashboard
 app.get('/', async (c) => {
   const userId = c.get('userId') as string;
-  
+  const db = c.get('db');
+
   if (!userId) {
     return c.json({ error: 'Unauthorized' }, 401);
   }
@@ -103,9 +103,10 @@ app.get('/', async (c) => {
   }
 });
 
-// POST /api/user/dashboard - Update balance (admin/trade operations)
+// POST /api/user/dashboard
 app.post('/', async (c) => {
   const userId = c.get('userId') as string;
+  const db = c.get('db');
   const body = await c.req.json();
   const { amount, type, source, note } = body;
 
