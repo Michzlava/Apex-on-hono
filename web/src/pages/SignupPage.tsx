@@ -33,6 +33,7 @@ export default function SignupPage() {
     try {
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: form.name,
@@ -41,22 +42,25 @@ export default function SignupPage() {
           country: form.country,
           password: form.password,
         }),
-      });
-      
-      const text = await res.text();
-const data = text ? JSON.parse(text) : {};
-      
-      if (!res.ok || data?.error) {
-        setError(data?.error || "Failed to create account");
-      } else {
-        // Redirect to login page on success
-        navigate('/login');
+      })
+
+      const text = await res.text()
+
+      if (!res.ok) {
+        setError(`Server ${res.status}: ${text.slice(0, 120)}`)
+        return
       }
+
+      let data: any = {}
+      try { data = JSON.parse(text) } catch { setError(`Weird reply: ${text.slice(0, 120)}`); return }
+
+      if (data?.error) { setError(data.error); return }
+
+      navigate('/login')
     } catch (err: any) {
-      // This will show the actual Cloudflare crash message on your screen
-      setError(`Server crashed: ${err.message}. Check /api/health`);
+      setError(`Network: ${err.message}`)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
   }
 
