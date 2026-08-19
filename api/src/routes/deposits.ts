@@ -1,14 +1,15 @@
 import { Hono } from 'hono';
-import { db } from '../db/client';
 import { deposits } from '../db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { createId } from '@paralleldrive/cuid2';
 
 const app = new Hono();
 
-// GET /api/user/deposits - Fetch user's deposit history
+// GET /api/user/deposits
 app.get('/', async (c) => {
   const userId = c.get('userId') as string;
+  const db = c.get('db');
+
   if (!userId) return c.json({ error: 'Unauthorized' }, 401);
 
   try {
@@ -38,9 +39,11 @@ app.get('/', async (c) => {
   }
 });
 
-// POST /api/user/deposits - Submit a new deposit request
+// POST /api/user/deposits
 app.post('/', async (c) => {
   const userId = c.get('userId') as string;
+  const db = c.get('db');
+
   if (!userId) return c.json({ error: 'Unauthorized' }, 401);
 
   const body = await c.req.json();
