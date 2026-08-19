@@ -1,20 +1,4 @@
-:root {
-  --bg: #070B14;
-  --card: #0a1120;
-  --surface: rgba(255,255,255,0.03);
-  --line: rgba(255,255,255,0.06);
-  --line-strong: rgba(255,255,255,0.12);
-  --ink: #F2F4FF;
-  --ink-dim: #8A93B8;
-  --ink-faint: #3A445C;
-  --accent: #38bdf8; /* Note: Login uses blue accent, Signup uses green */
-  --red: #FF5252;
-  --red-l: rgba(255, 82, 82, 0.1);
-  --sans: 'DM Sans', system-ui, sans-serif;
-  --mono: 'DM Mono', 'Courier New', monospace;
-}
 
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Barlow+Condensed:wght@500;800&display=swap');
 
 .login-shell {
   min-height: 100vh;
