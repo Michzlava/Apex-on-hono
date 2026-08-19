@@ -5,18 +5,12 @@ import SignupPage from './pages/SignupPage'
 import LoginPage from './pages/LoginPage'
 import DashboardLayout from './components/DashboardLayout'
 import DashboardOverview from './pages/DashboardOverview'
+import DepositPage from './pages/DepositPage'
 
 function ProtectedRoute() {
   const { user, loading } = useAuth()
-  
-  if (loading) {
-    return <div style={{ padding: '20px', color: 'white' }}>Loading...</div>
-  }
-  
-  if (!user) {
-    return <Navigate to="/login" replace />
-  }
-  
+  if (loading) return <div style={{ padding: '20px', color: 'white' }}>Loading...</div>
+  if (!user) return <Navigate to="/login" replace />
   return <Outlet />
 }
 
@@ -30,17 +24,17 @@ function AppRoutes() {
       <Route element={<ProtectedRoute />}>
         <Route path="/dashboard" element={<DashboardLayout />}>
           <Route index element={<DashboardOverview />} />
-          <Route path="markets" element={<div>Markets Page (Coming Soon)</div>} />
-          <Route path="trade" element={<div>Trade Page (Coming Soon)</div>} />
-          <Route path="assets" element={<div>Assets Page (Coming Soon)</div>} />
-          <Route path="deposit" element={<div>Deposit Page (Coming Soon)</div>} />
-          <Route path="withdraw" element={<div>Withdraw Page (Coming Soon)</div>} />
-          <Route path="support" element={<div>Support Page (Coming Soon)</div>} />
-          <Route path="settings" element={<div>Settings Page (Coming Soon)</div>} />
-          <Route path="notifications" element={<div>Notifications Page (Coming Soon)</div>} />
-          <Route path="kyc" element={<div>KYC Page (Coming Soon)</div>} />
-          <Route path="subscription" element={<div>Subscription Page (Coming Soon)</div>} />
-          <Route path="history" element={<div>History Page (Coming Soon)</div>} />
+          <Route path="deposit" element={<DepositPage />} />
+          <Route path="markets" element={<div>Markets Page</div>} />
+          <Route path="trade" element={<div>Trade Page</div>} />
+          <Route path="assets" element={<div>Assets Page</div>} />
+          <Route path="withdraw" element={<div>Withdraw Page</div>} />
+          <Route path="support" element={<div>Support Page</div>} />
+          <Route path="settings" element={<div>Settings Page</div>} />
+          <Route path="notifications" element={<div>Notifications Page</div>} />
+          <Route path="kyc" element={<div>KYC Page</div>} />
+          <Route path="subscription" element={<div>Subscription Page</div>} />
+          <Route path="history" element={<div>History Page</div>} />
         </Route>
       </Route>
     </Routes>
