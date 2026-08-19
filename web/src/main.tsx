@@ -4,11 +4,9 @@ import { BrowserRouter } from 'react-router-dom'
 import App from './App'
 import './index.css'
 
-if (new URLSearchParams(window.location.search).get('debug') === 'true') {
-  import('eruda').then(({ default: eruda }) => {
-    eruda.init()
-  })
-}
+import eruda from 'eruda'
+
+eruda.init()
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
