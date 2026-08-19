@@ -47,4 +47,14 @@ app.get('*', (c) => {
   return (c.env as any).ASSETS.fetch(c.req.raw)
 })
 
+// Quick health check to see if secrets are loaded
+app.get('/api/health', (c) => {
+  return c.json({
+    status: 'Worker is alive!',
+    hasDbUrl: !!process.env.DATABASE_URL,
+    hasJwtSecret: !!process.env.JWT_SECRET,
+    hint: 'If false, add them in Cloudflare Dashboard -> Settings -> Variables'
+  });
+})
+
 export default app
