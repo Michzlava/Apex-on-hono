@@ -13,12 +13,14 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   signOut: () => Promise<void>;
+  refetch: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
   signOut: async () => {},
+  refetch: async () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -35,7 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await fetch('/api/auth/me', {
         credentials: 'include',
       });
-      
+
       if (res.ok) {
         const data = await res.json();
         setUser(data.user);
@@ -64,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signOut, refetch: checkAuth }}>
       {children}
     </AuthContext.Provider>
   );
