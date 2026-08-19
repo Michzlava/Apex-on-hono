@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,700&family=Manrope:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,700;0,900;1,400&display=swap');
 
 @theme {
   --color-bg: var(--bg);
@@ -89,10 +90,6 @@
   --surface-hover: #f0f7f7;
 }
 
-/* Import Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,700&family=Manrope:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,700;0,900;1,400&display=swap');
-
-/* Global resets */
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
@@ -108,26 +105,3 @@ html, body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
-
-/* Utility classes using theme variables */
-.bg-bg { background: var(--bg); }
-.bg-bg-2 { background: var(--bg-2); }
-.bg-bg-3 { background: var(--bg-3); }
-.bg-card { background: var(--card); }
-.bg-surface { background: var(--surface); }
-.bg-surface-hover { background: var(--surface-hover); }
-
-.text-ink { color: var(--ink); }
-.text-ink-2 { color: var(--ink-2); }
-.text-ink-dim { color: var(--ink-dim); }
-.text-ink-faint { color: var(--ink-faint); }
-.text-accent { color: var(--accent); }
-.text-green { color: var(--green); }
-.text-red { color: var(--red); }
-.text-gold { color: var(--gold); }
-
-.border-line { border-color: var(--line); }
-.border-line-strong { border-color: var(--line-strong); }
-
-.font-mono { font-family: var(--mono); }
-.font-sans { font-family: var(--sans); }
