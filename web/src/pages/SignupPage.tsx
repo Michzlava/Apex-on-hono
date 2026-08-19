@@ -43,7 +43,8 @@ export default function SignupPage() {
         }),
       });
       
-      const data = await res.json();
+      const text = await res.text();
+const data = text ? JSON.parse(text) : {};
       
       if (!res.ok || data?.error) {
         setError(data?.error || "Failed to create account");
@@ -51,8 +52,9 @@ export default function SignupPage() {
         // Redirect to login page on success
         navigate('/login');
       }
-    } catch (err) {
-      setError("Network error. Please try again.");
+    } catch (err: any) {
+      // This will show the actual Cloudflare crash message on your screen
+      setError(`Server crashed: ${err.message}. Check /api/health`);
     } finally {
       setLoading(false);
     }
