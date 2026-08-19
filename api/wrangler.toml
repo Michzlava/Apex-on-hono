@@ -1,0 +1,8 @@
+name = "apex-api"
+main = "src/index.ts"
+compatibility_date = "2026-08-19"
+compatibility_flags = ["nodejs_compat"]
+
+# This ensures your environment variables (like DB URLs) are kept secret
+[vars]
+# We will add your actual secrets in the Cloudflare Dashboard later!
