@@ -1,12 +1,13 @@
 import { Hono } from 'hono';
-import { db } from '../db/client';
 import { depositMethods } from '../db/schema';
 import { eq, asc } from 'drizzle-orm';
 
 const app = new Hono();
 
-// GET /api/admin/deposit-methods - Fetch active deposit methods
+// GET /api/admin/deposit-methods
 app.get('/', async (c) => {
+  const db = c.get('db');
+
   try {
     const methods = await db
       .select()
