@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
 import { Logo } from './Logo';
 import { useAuth } from '../context/AuthContext';
-import './dashboard.css';
+import '../pages/dashboard.css';
 
 const navItems = [
   {
