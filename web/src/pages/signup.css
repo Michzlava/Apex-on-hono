@@ -1,22 +1,4 @@
-:root {
-  --bg: #070B14;
-  --bg-3: #0a1120;
-  --surface: rgba(255,255,255,0.03);
-  --line: rgba(255,255,255,0.06);
-  --line-strong: rgba(255,255,255,0.12);
-  --ink: #F2F4FF;
-  --ink-dim: #8A93B8;
-  --ink-faint: #3A445C;
-  --accent: #00D68A;
-  --red: #FF5252;
-  --red-l: rgba(255, 82, 82, 0.1);
-  --gold: #FFC02A;
-  --green: #00D68A;
-  --sans: 'DM Sans', system-ui, sans-serif;
-  --mono: 'DM Mono', 'Courier New', monospace;
-}
 
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,400&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
 
 .auth-shell {
   min-height: 100vh;
