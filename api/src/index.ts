@@ -4,6 +4,7 @@ import marketRoutes from './routes/market'
 import authRoutes from './routes/auth'
 import dashboardRoutes from './routes/dashboard'
 import newsRoutes from './routes/news'
+import depositMethodsRoutes from './routes/deposit-methods'
 import { authMiddleware } from './middleware/auth'
 
 const app = new Hono()
@@ -22,6 +23,8 @@ app.route('/api/news', newsRoutes)
 
 // Protected routes
 app.use('/api/user/*', authMiddleware)
+app.use('/api/admin/*', authMiddleware) // You can add role checking here later
 app.route('/api/user/dashboard', dashboardRoutes)
+app.route('/api/admin/deposit-methods', depositMethodsRoutes)
 
 export default app
