@@ -1,8 +1,9 @@
-name = "apex-api"
+name = "apex-on-hono"
 main = "src/index.ts"
 compatibility_date = "2026-08-19"
 compatibility_flags = ["nodejs_compat"]
 
-[vars]
-# Add your actual secrets in Cloudflare Dashboard or .dev.vars
-# JWT_SECRET = "your-super-secret-key-here"
+[assets]
+directory = "../web/dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
