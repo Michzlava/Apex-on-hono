@@ -6,7 +6,7 @@ import "./login.css";
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { refetch } = useAuth();
+  const { setUser } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [form, setForm] = useState({ email: "", password: "" });
@@ -20,7 +20,7 @@ export default function LoginPage() {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include', // Important: sends/receives httpOnly cookies
+        credentials: 'include',
         body: JSON.stringify(form),
       });
 
@@ -29,9 +29,7 @@ export default function LoginPage() {
       if (!res.ok || data?.error) {
         setError(data?.error || "Invalid credentials");
       } else {
-        // Refresh auth context so `user` is populated before navigating,
-        // otherwise protected routes may briefly see user: null and bounce back.
-        await refetch();
+        setUser(data.user);
         navigate('/dashboard');
       }
     } catch (err) {
