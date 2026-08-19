@@ -31,3 +31,9 @@ app.route('/api/user/deposits', depositRoutes)
 app.route('/api/admin/deposit-methods', depositMethodsRoutes)
 
 export default app
+// Serve the React SPA for all non-API GET routes
+app.get('*', (c) => {
+  return (c.env as any).ASSETS.fetch(c.req.raw)
+})
+
+export default app
