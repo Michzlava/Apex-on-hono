@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+
 .dp-wrap {
   --sans: 'Space Grotesk', var(--font-sans-fallback, system-ui), sans-serif;
   --mono: 'Space Mono', var(--font-mono-fallback, monospace);
@@ -260,4 +262,3 @@
 }
 
 /* ── Space Grotesk + Space Mono font import ── */
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
