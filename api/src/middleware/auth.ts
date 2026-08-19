@@ -2,20 +2,19 @@ import { createMiddleware } from 'hono/factory'
 import { verify } from 'hono/jwt'
 import { getCookie } from 'hono/cookie'
 
-export const authMiddleware = createMiddleware(async (c, next) => {
+type Bindings = {
+  JWT_SECRET: string
+}
+
+export const authMiddleware = createMiddleware<{ Bindings: Bindings }>(async (c, next) => {
   const token = getCookie(c, 'apex_token')
-  
+
   if (!token) {
     return c.json({ error: 'Unauthorized' }, 401)
   }
 
   try {
-    const secret = process.env.JWT_SECRET!
-    if (!secret) {
-      throw new Error('JWT_SECRET not configured')
-    }
-    
-    const payload = await verify(token, secret)
+    const payload = await verify(token, c.env.JWT_SECRET)
     c.set('userId', payload.sub as string)
     c.set('userRole', payload.role as string)
     await next()
