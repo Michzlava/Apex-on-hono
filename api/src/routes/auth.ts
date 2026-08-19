@@ -1,15 +1,25 @@
 import { Hono } from 'hono'
-import { db } from '../db/client'
 import { users } from '../db/schema'
 import { eq } from 'drizzle-orm'
 import bcrypt from 'bcryptjs'
 import { sign, verify } from 'hono/jwt'
 import { setCookie, getCookie, deleteCookie } from 'hono/cookie'
+import type { Db } from '../db/client'
 
-const app = new Hono()
+type Bindings = {
+  JWT_SECRET: string
+  DATABASE_URL: string
+}
+
+type Variables = {
+  db: Db
+}
+
+const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
 // ── SIGNUP ──
 app.post('/signup', async (c) => {
+  const db = c.get('db')
   const body = await c.req.json()
   const { name, email, phone, country, password } = body
 
@@ -46,6 +56,7 @@ app.post('/signup', async (c) => {
 
 // ── LOGIN ──
 app.post('/login', async (c) => {
+  const db = c.get('db')
   const { email, password } = await c.req.json()
 
   try {
@@ -64,7 +75,7 @@ app.post('/login', async (c) => {
       sub: user.id,
       role: user.role,
       exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24,
-    }, process.env.JWT_SECRET!)
+    }, c.env.JWT_SECRET)
 
     setCookie(c, 'apex_token', token, {
       httpOnly: true,
@@ -82,11 +93,12 @@ app.post('/login', async (c) => {
 
 // ── ME ──
 app.get('/me', async (c) => {
+  const db = c.get('db')
   const token = getCookie(c, 'apex_token')
   if (!token) return c.json({ user: null }, 401)
 
   try {
-    const payload = await verify(token, process.env.JWT_SECRET!)
+    const payload = await verify(token, c.env.JWT_SECRET)
     const [user] = await db
       .select({ id: users.id, email: users.email, firstName: users.firstName, lastName: users.lastName, role: users.role })
       .from(users)
