@@ -7,21 +7,29 @@ import newsRoutes from './routes/news'
 import depositMethodsRoutes from './routes/deposit-methods'
 import depositRoutes from './routes/deposits'
 import { authMiddleware } from './middleware/auth'
+import { createDb } from './db/client'
 
 const app = new Hono()
 
-// 1. Wide-open CORS to completely rule it out during mobile testing
+// 1. Wide-open CORS
 app.use('*', cors({
-  origin: (origin) => origin, // Reflects the exact origin back (safe for credentials)
+  origin: (origin) => origin,
   credentials: true,
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization'],
 }))
 
-// 2. Basic root
+// 2. Attach db instance to context on every request
+app.use('*', (c, next) => {
+  const dbUrl = (c.env as any).DATABASE_URL
+  c.set('db', createDb(dbUrl))
+  return next()
+})
+
+// 3. Basic root
 app.get('/', (c) => c.json({ status: 'ok', message: 'Apex API is running!' }))
 
-// 3. HEALTH CHECK (Must be above the catch-all!)
+// 4. Health check
 app.get('/api/health', (c) => {
   return c.json({
     status: 'Worker is alive!',
@@ -31,19 +39,19 @@ app.get('/api/health', (c) => {
   })
 })
 
-// 4. Public API routes
+// 5. Public API routes
 app.route('/api/auth', authRoutes)
 app.route('/api/market', marketRoutes)
 app.route('/api/news', newsRoutes)
 app.route('/api/admin/deposit-methods', depositMethodsRoutes)
 
-// 5. Protected API routes
+// 6. Protected API routes
 app.use('/api/user/*', authMiddleware)
 app.use('/api/admin/*', authMiddleware)
 app.route('/api/user/dashboard', dashboardRoutes)
 app.route('/api/user/deposits', depositRoutes)
 
-// 6. SPA Catch-all (MUST BE THE VERY LAST ROUTE)
+// 7. SPA Catch-all (MUST BE LAST)
 app.get('*', (c) => {
   return (c.env as any).ASSETS.fetch(c.req.raw)
 })
