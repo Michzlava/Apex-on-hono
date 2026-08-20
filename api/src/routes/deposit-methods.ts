@@ -1,10 +1,14 @@
-import { Hono } from 'hono';
+  import { Hono } from 'hono';
 import { depositMethods } from '../db/schema';
 import { eq, asc } from 'drizzle-orm';
 
 const app = new Hono();
 
-// GET /api/admin/deposit-methods — active methods for users
+function isAdmin(c: any) {
+  return c.get('userRole') === 'ADMIN'
+}
+
+// GET /api/admin/deposit-methods — active methods for deposit sheet
 app.get('/', async (c) => {
   const db = c.get('db');
 
@@ -22,97 +26,85 @@ app.get('/', async (c) => {
   }
 });
 
-// GET /api/admin/deposit-methods/manage — all methods for admin
+// ── Manage endpoints (admin-only) ───────────────────────────────────────────
+
+// GET /api/admin/deposit-methods/manage — all methods
 app.get('/manage', async (c) => {
+  if (!isAdmin(c)) return c.json({ error: 'Forbidden' }, 403);
   const db = c.get('db');
 
-  try {
-    const methods = await db
-      .select()
-      .from(depositMethods)
-      .orderBy(asc(depositMethods.sortOrder));
+  const methods = await db
+    .select()
+    .from(depositMethods)
+    .orderBy(asc(depositMethods.sortOrder));
 
-    return c.json(methods);
-  } catch (error) {
-    console.error('Deposit methods manage fetch error:', error);
-    return c.json([]);
-  }
+  return c.json(methods);
 });
 
 // POST /api/admin/deposit-methods/manage — create
 app.post('/manage', async (c) => {
+  if (!isAdmin(c)) return c.json({ error: 'Forbidden' }, 403);
   const db = c.get('db');
   const body = await c.req.json();
 
-  try {
-    await db.insert(depositMethods).values({
-      id: crypto.randomUUID(),
-      label: body.label,
-      icon: body.icon,
-      address: body.address,
-      network: body.network || null,
-      note: body.note || null,
-      isActive: body.isActive ?? true,
-      sortOrder: body.sortOrder ?? 0,
-    });
-
-    return c.json({ success: true });
-  } catch (error: any) {
-    console.error('Create deposit method error:', error);
-    return c.json({ error: error.message || 'Failed to create' }, 500);
+  if (!body.label || !body.address) {
+    return c.json({ error: 'label and address are required' }, 400);
   }
+
+  const [method] = await db.insert(depositMethods).values({
+    id: crypto.randomUUID(),
+    label: body.label,
+    icon: body.icon ?? '💳',
+    address: body.address,
+    network: body.network ?? null,
+    note: body.note ?? null,
+    isActive: body.isActive ?? true,
+    sortOrder: body.sortOrder ?? 0,
+  }).returning();
+
+  return c.json(method, 201);
 });
 
 // PATCH /api/admin/deposit-methods/manage — update
 app.patch('/manage', async (c) => {
+  if (!isAdmin(c)) return c.json({ error: 'Forbidden' }, 403);
   const db = c.get('db');
   const body = await c.req.json();
+  const { id, ...data } = body;
 
-  if (!body.id) {
-    return c.json({ error: 'ID required' }, 400);
-  }
+  if (!id) return c.json({ error: 'id is required' }, 400);
 
-  try {
-    await db
-      .update(depositMethods)
-      .set({
-        ...(body.label !== undefined && { label: body.label }),
-        ...(body.icon !== undefined && { icon: body.icon }),
-        ...(body.address !== undefined && { address: body.address }),
-        ...(body.network !== undefined && { network: body.network || null }),
-        ...(body.note !== undefined && { note: body.note || null }),
-        ...(body.isActive !== undefined && { isActive: body.isActive }),
-        ...(body.sortOrder !== undefined && { sortOrder: body.sortOrder }),
-        updatedAt: new Date(),
-      })
-      .where(eq(depositMethods.id, body.id));
+  const [method] = await db
+    .update(depositMethods)
+    .set({
+      ...(data.label !== undefined && { label: data.label }),
+      ...(data.icon !== undefined && { icon: data.icon }),
+      ...(data.address !== undefined && { address: data.address }),
+      ...(data.network !== undefined && { network: data.network || null }),
+      ...(data.note !== undefined && { note: data.note || null }),
+      ...(data.isActive !== undefined && { isActive: data.isActive }),
+      ...(data.sortOrder !== undefined && { sortOrder: data.sortOrder }),
+      updatedAt: new Date(),
+    })
+    .where(eq(depositMethods.id, id))
+    .returning();
 
-    return c.json({ success: true });
-  } catch (error: any) {
-    console.error('Update deposit method error:', error);
-    return c.json({ error: error.message || 'Failed to update' }, 500);
-  }
+  return c.json(method);
 });
 
 // DELETE /api/admin/deposit-methods/manage — delete
 app.delete('/manage', async (c) => {
+  if (!isAdmin(c)) return c.json({ error: 'Forbidden' }, 403);
   const db = c.get('db');
   const id = c.req.query('id');
 
-  if (!id) {
-    return c.json({ error: 'ID required' }, 400);
-  }
+  if (!id) return c.json({ error: 'id is required' }, 400);
 
-  try {
-    await db
-      .delete(depositMethods)
-      .where(eq(depositMethods.id, id));
+  await db
+    .delete(depositMethods)
+    .where(eq(depositMethods.id, id));
 
-    return c.json({ success: true });
-  } catch (error: any) {
-    console.error('Delete deposit method error:', error);
-    return c.json({ error: error.message || 'Failed to delete' }, 500);
-  }
+  return c.json({ success: true });
 });
 
 export default app;
