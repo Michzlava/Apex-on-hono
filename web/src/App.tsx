@@ -6,6 +6,7 @@ import LoginPage from './pages/LoginPage'
 import DashboardLayout from './components/DashboardLayout'
 import DashboardOverview from './pages/DashboardOverview'
 import DepositPage from './pages/DepositPage'
+import TradePage from './pages/TradePage' // ← ADD THIS
 
 function ProtectedRoute() {
   const { user, loading } = useAuth()
@@ -26,7 +27,7 @@ function AppRoutes() {
           <Route index element={<DashboardOverview />} />
           <Route path="deposit" element={<DepositPage />} />
           <Route path="markets" element={<div>Markets Page</div>} />
-          <Route path="trade" element={<div>Trade Page</div>} />
+          <Route path="trade" element={<TradePage />} /> {/* ← FIXED */}
           <Route path="assets" element={<div>Assets Page</div>} />
           <Route path="withdraw" element={<div>Withdraw Page</div>} />
           <Route path="support" element={<div>Support Page</div>} />
