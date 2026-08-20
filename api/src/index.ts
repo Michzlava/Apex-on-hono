@@ -7,7 +7,8 @@ import newsRoutes from './routes/news'
 import depositMethodsRoutes from './routes/deposit-methods'
 import depositRoutes from './routes/deposits'
 import tradeRoutes from './routes/trade'
-import priceRoutes from './routes/price' // ← ADD
+import priceRoutes from './routes/price'
+import assetsRoutes from './routes/assets'
 import { authMiddleware } from './middleware/auth'
 import { createDb } from './db/client'
 
@@ -40,7 +41,7 @@ app.get('/api/health', (c) => {
 app.route('/api/auth', authRoutes)
 app.route('/api/market', marketRoutes)
 app.route('/api/news', newsRoutes)
-app.route('/api/price', priceRoutes) // ← ADD THIS LINE
+app.route('/api/price', priceRoutes)
 
 // Protected API routes
 app.use('/api/admin/*', authMiddleware)
@@ -49,6 +50,9 @@ app.route('/api/admin/deposit-methods', depositMethodsRoutes)
 app.use('/api/user/*', authMiddleware)
 app.route('/api/user/dashboard', dashboardRoutes)
 app.route('/api/user/deposits', depositRoutes)
+
+app.use('/api/assets', authMiddleware)
+app.route('/api/assets', assetsRoutes)
 
 app.use('/api/transaction/*', authMiddleware)
 app.route('/api/transaction/trade', tradeRoutes)
