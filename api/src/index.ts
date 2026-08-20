@@ -7,22 +7,19 @@ import newsRoutes from './routes/news'
 import depositMethodsRoutes from './routes/deposit-methods'
 import depositRoutes from './routes/deposits'
 import tradeRoutes from './routes/trade'
+import priceRoutes from './routes/price' // ← ADD
 import { authMiddleware } from './middleware/auth'
 import { createDb } from './db/client'
 
 const app = new Hono()
 
-// CORS: never return undefined when credentials: true
 app.use('*', cors({
-  origin: (origin, c) => {
-    return origin || new URL(c.req.url).origin
-  },
+  origin: (origin, c) => origin || new URL(c.req.url).origin,
   credentials: true,
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization'],
 }))
 
-// Attach db instance to context on every request
 app.use('*', async (c, next) => {
   const dbUrl = (c.env as any).DATABASE_URL
   c.set('db', createDb(dbUrl))
@@ -43,8 +40,9 @@ app.get('/api/health', (c) => {
 app.route('/api/auth', authRoutes)
 app.route('/api/market', marketRoutes)
 app.route('/api/news', newsRoutes)
+app.route('/api/price', priceRoutes) // ← ADD THIS LINE
 
-// Protected API routes — middleware FIRST, then mount routes
+// Protected API routes
 app.use('/api/admin/*', authMiddleware)
 app.route('/api/admin/deposit-methods', depositMethodsRoutes)
 
@@ -55,7 +53,6 @@ app.route('/api/user/deposits', depositRoutes)
 app.use('/api/transaction/*', authMiddleware)
 app.route('/api/transaction/trade', tradeRoutes)
 
-// SPA Catch-all (MUST BE LAST)
 app.get('*', (c) => {
   return (c.env as any).ASSETS.fetch(c.req.raw)
 })
