@@ -12,13 +12,11 @@ import { createDb } from './db/client'
 
 const app = new Hono()
 
-// 1. CORS — fixed to never return undefined when credentials: true
-// For same-domain, this simply echoes back the request origin.
-// If you ever go cross-domain, replace this with an explicit allow-list.
+// 1. CORS — NEVER return undefined when credentials: true is set.
+// For same-domain this echoes the request origin. For cross-domain,
+// replace with an explicit allow-list: ['https://your-domain.com']
 app.use('*', cors({
   origin: (origin, c) => {
-    // Same-origin requests often have no Origin header.
-    // We must return a valid origin string when credentials: true is set.
     return origin || new URL(c.req.url).origin
   },
   credentials: true,
