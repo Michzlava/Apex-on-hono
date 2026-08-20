@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import { users } from '../db/schema'
 import { eq } from 'drizzle-orm'
 import bcrypt from 'bcryptjs'
-import { sign, verify } from 'hono/jwt'
+import { SignJWT, jwtVerify } from 'jose'
 import { setCookie, getCookie, deleteCookie } from 'hono/cookie'
 import type { Db } from '../db/client'
 
@@ -16,6 +16,16 @@ type Variables = {
 }
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
+
+// Helper: get secret as Uint8Array for jose
+const getSecret = (secret: string) => new TextEncoder().encode(secret)
+
+// Helper: manual cookie parse fallback (hono/cookie can be flaky on Workers)
+function getTokenManual(c: any): string | undefined {
+  const cookieHeader = c.req.header('Cookie') || ''
+  const match = cookieHeader.match(/apex_token=([^;]+)/)
+  return match ? decodeURIComponent(match[1]) : undefined
+}
 
 // ── SIGNUP ──
 app.post('/signup', async (c) => {
@@ -79,11 +89,15 @@ app.post('/login', async (c) => {
       return c.json({ error: 'Invalid email or password.' }, 401)
     }
 
-    const token = await sign({
+    const secret = getSecret(c.env.JWT_SECRET)
+    const token = await new SignJWT({
       sub: user.id,
       role: user.role,
-      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24,
-    }, c.env.JWT_SECRET)
+    })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime('24h')
+      .sign(secret)
 
     setCookie(c, 'apex_token', token, {
       httpOnly: true,
@@ -92,6 +106,8 @@ app.post('/login', async (c) => {
       maxAge: 60 * 60 * 24,
       path: '/',
     })
+
+    console.log('[AUTH LOGIN] Cookie set. Token length:', token.length)
 
     return c.json({
       success: true,
@@ -103,7 +119,7 @@ app.post('/login', async (c) => {
       },
     })
   } catch (error: any) {
-    console.error('Login error:', error)
+    console.error('[AUTH LOGIN] Error:', error)
     return c.json({ error: `Login failed: ${error.message}` }, 500)
   }
 })
@@ -111,18 +127,23 @@ app.post('/login', async (c) => {
 // ── ME ──
 app.get('/me', async (c) => {
   const db = c.get('db')
-  const token = getCookie(c, 'apex_token')
 
-  // Temporary diagnostic: check Wrangler logs after a refresh
-  console.log('[AUTH /me] Cookie header:', c.req.header('Cookie'))
-  console.log('[AUTH /me] Token parsed:', token ? 'present' : 'MISSING')
+  // Try hono/cookie first, then manual fallback
+  let token = getCookie(c, 'apex_token') || getTokenManual(c)
+
+  const rawCookieHeader = c.req.header('Cookie')
+
+  console.log('[AUTH ME] Raw Cookie header:', rawCookieHeader)
+  console.log('[AUTH ME] Token found:', token ? 'YES (length: ' + token.length + ')' : 'NO')
 
   if (!token) {
     return c.json({ user: null }, 401)
   }
 
   try {
-    const payload = await verify(token, c.env.JWT_SECRET)
+    const secret = getSecret(c.env.JWT_SECRET)
+    const { payload } = await jwtVerify(token, secret, { clockTolerance: 60 })
+
     const [user] = await db
       .select({
         id: users.id,
@@ -140,15 +161,24 @@ app.get('/me', async (c) => {
     }
 
     return c.json({ user })
-  } catch (err) {
-    console.error('[AUTH /me] Token verification failed:', err)
+  } catch (err: any) {
+    console.error('[AUTH ME] JWT verify failed:', err.message)
     return c.json({ user: null }, 401)
   }
 })
 
+// ── DEBUG ── (temporary, remove after fix confirmed)
+app.get('/debug', (c) => {
+  return c.json({
+    cookieHeader: c.req.header('Cookie'),
+    tokenHono: getCookie(c, 'apex_token') ? 'present' : 'missing',
+    tokenManual: getTokenManual(c) ? 'present' : 'missing',
+  })
+})
+
 // ── LOGOUT ──
 app.post('/logout', (c) => {
-  deleteCookie(c, 'apex_token', { path: '/' })
+  deleteCookie(c, 'apex_token', { path: '/', secure: true, sameSite: 'Lax' })
   return c.json({ success: true })
 })
 
