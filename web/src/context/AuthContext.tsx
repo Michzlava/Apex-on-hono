@@ -15,6 +15,7 @@ interface AuthContextType {
   setUser: (user: User | null) => void;
   signOut: () => Promise<void>;
   refetch: () => Promise<void>;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -23,7 +24,21 @@ const AuthContext = createContext<AuthContextType>({
   setUser: () => {},
   signOut: async () => {},
   refetch: async () => {},
+  login: async () => ({ success: false }),
 });
+
+// Helper: ALWAYS include credentials so cookies are sent and received
+async function apiFetch(path: string, options: RequestInit = {}) {
+  const res = await fetch(path, {
+    ...options,
+    credentials: 'include',
+    headers: {
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...options.headers,
+    },
+  });
+  return res;
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -36,9 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function checkAuth() {
     try {
-      const res = await fetch('/api/auth/me', {
-        credentials: 'include',
-      });
+      const res = await apiFetch('/api/auth/me');
 
       if (res.ok) {
         const data = await res.json();
@@ -47,18 +60,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null);
       }
     } catch (error) {
+      console.error('checkAuth error:', error);
       setUser(null);
     } finally {
       setLoading(false);
     }
   }
 
+  async function login(email: string, password: string) {
+    try {
+      const res = await apiFetch('/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        return { success: false, error: data.error || 'Login failed' };
+      }
+
+      const data = await res.json();
+      setUser(data.user);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Network error' };
+    }
+  }
+
   async function signOut() {
     try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include',
-      });
+      await apiFetch('/api/auth/logout', { method: 'POST' });
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
@@ -68,7 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, setUser, signOut, refetch: checkAuth }}>
+    <AuthContext.Provider value={{ user, loading, setUser, signOut, refetch: checkAuth, login }}>
       {children}
     </AuthContext.Provider>
   );
