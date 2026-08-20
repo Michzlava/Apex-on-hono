@@ -23,7 +23,9 @@ app.post('/signup', async (c) => {
   const body = await c.req.json()
   const { name, email, phone, country, password } = body
 
-  if (!email || !password) return c.json({ error: 'Email and password are required.' }, 400)
+  if (!email || !password) {
+    return c.json({ error: 'Email and password are required.' }, 400)
+  }
 
   try {
     const [existing] = await db
@@ -32,7 +34,9 @@ app.post('/signup', async (c) => {
       .where(eq(users.email, email.toLowerCase().trim()))
       .limit(1)
 
-    if (existing) return c.json({ error: 'An account with this email already exists.' }, 409)
+    if (existing) {
+      return c.json({ error: 'An account with this email already exists.' }, 409)
+    }
 
     const hashedPassword = await bcrypt.hash(password, 10)
     const nameParts = (name || '').trim().split(' ')
@@ -66,10 +70,14 @@ app.post('/login', async (c) => {
       .where(eq(users.email, (email || '').toLowerCase().trim()))
       .limit(1)
 
-    if (!user || !user.password) return c.json({ error: 'Invalid email or password.' }, 401)
+    if (!user || !user.password) {
+      return c.json({ error: 'Invalid email or password.' }, 401)
+    }
 
     const valid = await bcrypt.compare(password, user.password)
-    if (!valid) return c.json({ error: 'Invalid email or password.' }, 401)
+    if (!valid) {
+      return c.json({ error: 'Invalid email or password.' }, 401)
+    }
 
     const token = await sign({
       sub: user.id,
@@ -85,8 +93,17 @@ app.post('/login', async (c) => {
       path: '/',
     })
 
-    return c.json({ success: true, user: { id: user.id, email: user.email, firstName: user.firstName, role: user.role } })
+    return c.json({
+      success: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        role: user.role,
+      },
+    })
   } catch (error: any) {
+    console.error('Login error:', error)
     return c.json({ error: `Login failed: ${error.message}` }, 500)
   }
 })
@@ -95,19 +112,36 @@ app.post('/login', async (c) => {
 app.get('/me', async (c) => {
   const db = c.get('db')
   const token = getCookie(c, 'apex_token')
-  if (!token) return c.json({ user: null }, 401)
+
+  // Temporary diagnostic: check Wrangler logs after a refresh to see if the cookie arrives
+  console.log('[AUTH /me] Cookie header:', c.req.header('Cookie'))
+  console.log('[AUTH /me] Token parsed:', token ? 'present' : 'MISSING')
+
+  if (!token) {
+    return c.json({ user: null }, 401)
+  }
 
   try {
     const payload = await verify(token, c.env.JWT_SECRET)
     const [user] = await db
-      .select({ id: users.id, email: users.email, firstName: users.firstName, lastName: users.lastName, role: users.role })
+      .select({
+        id: users.id,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        role: users.role,
+      })
       .from(users)
       .where(eq(users.id, payload.sub as string))
       .limit(1)
 
-    if (!user) return c.json({ user: null }, 401)
+    if (!user) {
+      return c.json({ user: null }, 401)
+    }
+
     return c.json({ user })
-  } catch {
+  } catch (err) {
+    console.error('[AUTH /me] Token verification failed:', err)
     return c.json({ user: null }, 401)
   }
 })
