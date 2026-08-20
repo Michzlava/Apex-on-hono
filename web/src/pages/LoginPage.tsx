@@ -6,7 +6,7 @@ import "./login.css";
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { setUser } = useAuth();
+  const { login } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [form, setForm] = useState({ email: "", password: "" });
@@ -16,26 +16,13 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
 
-    try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(form),
-      });
+    const result = await login(form.email, form.password);
 
-      const data = await res.json();
-
-      if (!res.ok || data?.error) {
-        setError(data?.error || "Invalid credentials");
-      } else {
-        setUser(data.user);
-        navigate('/dashboard');
-      }
-    } catch (err) {
-      setError("Network error. Please try again.");
-    } finally {
+    if (!result.success) {
+      setError(result.error || "Invalid credentials");
       setLoading(false);
+    } else {
+      navigate('/dashboard');
     }
   }
 
