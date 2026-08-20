@@ -9,6 +9,7 @@ import depositRoutes from './routes/deposits'
 import tradeRoutes from './routes/trade'
 import priceRoutes from './routes/price'
 import assetsRoutes from './routes/assets'
+import adminUsersRoutes from './routes/admin-users'
 import { authMiddleware } from './middleware/auth'
 import { createDb } from './db/client'
 
@@ -46,6 +47,7 @@ app.route('/api/price', priceRoutes)
 // Protected API routes
 app.use('/api/admin/*', authMiddleware)
 app.route('/api/admin/deposit-methods', depositMethodsRoutes)
+app.route('/api/admin/users', adminUsersRoutes)
 
 app.use('/api/user/*', authMiddleware)
 app.route('/api/user/dashboard', dashboardRoutes)
