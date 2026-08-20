@@ -1,69 +1,103 @@
 import { Hono } from 'hono'
 
-// CoinGecko ID mapping for crypto
-const COINGECKO_MAP: Record<string, string> = {
+const CACHE_TTL_MS = 30 * 1000
+const priceCache = new Map<string, { price: number; change24h: number; fetchedAt: number }>()
+
+const YAHOO_SYMBOL_MAP: Record<string, string> = {
+  USOIL:  'CL=F',
+  UKOIL:  'BZ=F',
+  XAUUSD: 'GC=F',
+  EURUSD: 'EURUSD=X',
+  GBPUSD: 'GBPUSD=X',
+  USDJPY: 'JPY=X',
+  AAPL:   'AAPL',
+  TSLA:   'TSLA',
+  NVDA:   'NVDA',
+  MSFT:   'MSFT',
+  AMZN:   'AMZN',
+  GOOGL:  'GOOGL',
+}
+
+const CRYPTO_GECKO_MAP: Record<string, string> = {
   BTC: 'bitcoin',
   ETH: 'ethereum',
   SOL: 'solana',
   BNB: 'binancecoin',
 }
 
-// Realistic mock data for stocks / forex / commodities
-const MOCK_PRICES: Record<string, { price: number; change24h: number }> = {
-  AAPL:   { price: 189.50,  change24h: 1.25 },
-  TSLA:   { price: 245.30,  change24h: -0.85 },
-  NVDA:   { price: 875.20,  change24h: 2.10 },
-  MSFT:   { price: 420.15,  change24h: 0.65 },
-  AMZN:   { price: 178.90,  change24h: -0.30 },
-  GOOGL:  { price: 165.40,  change24h: 0.95 },
-  USOIL:  { price: 78.45,   change24h: 1.50 },
-  UKOIL:  { price: 82.30,   change24h: 1.35 },
-  XAUUSD: { price: 2345.60, change24h: 0.45 },
-  EURUSD: { price: 1.0845,  change24h: -0.15 },
-  GBPUSD: { price: 1.2730,  change24h: 0.25 },
-  USDJPY: { price: 151.45,  change24h: -0.35 },
-}
-
 const app = new Hono()
 
 app.get('/', async (c) => {
-  const symbol = c.req.query('symbol')
+  const symbol = c.req.query('symbol')?.toUpperCase()
   if (!symbol) return c.json({ error: 'Missing symbol' }, 400)
 
-  const base = symbol.toUpperCase().replace('USD', '').replace('USDT', '')
+  const cached = priceCache.get(symbol)
+  if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
+    return c.json({ symbol, price: cached.price, change24h: cached.change24h })
+  }
 
-  // ── Crypto: fetch from CoinGecko with Cloudflare edge caching ──
-  if (COINGECKO_MAP[base]) {
-    try {
-      const id = COINGECKO_MAP[base]
-      const res = await fetch(
-        `https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=usd&include_24hr_change=true`,
-        { cf: { cacheTtl: 60 } } // Cache 60s on Cloudflare edge
-      )
-      if (!res.ok) throw new Error('CoinGecko failed')
+  try {
+    let price = 0
+    let change24h = 0
+
+    if (YAHOO_SYMBOL_MAP[symbol]) {
+      // ── Stocks, Forex, Commodities via Yahoo Finance ──
+      const ticker = YAHOO_SYMBOL_MAP[symbol]
+      const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${ticker}`)
+      if (!res.ok) throw new Error('Yahoo fetch failed')
       const data = await res.json()
-      const coin = data[id]
-      return c.json({
-        price: Number(coin.usd),
-        change24h: Number(coin.usd_24h_change ?? 0),
-      })
-    } catch (err) {
-      console.error('[price] CoinGecko error:', err)
-      // Fall through to mock if API fails
+      const meta = data.chart.result[0].meta
+      price = meta.regularMarketPrice
+      const prevClose = meta.chartPreviousClose ?? meta.previousClose ?? price
+      change24h = ((price - prevClose) / prevClose) * 100
+
+    } else {
+      // ── Crypto ──
+      let geckoId = CRYPTO_GECKO_MAP[symbol]
+
+      if (!geckoId) {
+        return c.json({ error: `Symbol ${symbol} not found` }, 404)
+      }
+
+      // Primary: CoinGecko
+      try {
+        const res = await fetch(
+          `https://api.coingecko.com/api/v3/simple/price?ids=${geckoId}&vs_currencies=usd&include_24hr_change=true`,
+          { cf: { cacheTtl: 30 } } as any
+        )
+        if (res.ok) {
+          const data = await res.json()
+          price = data[geckoId]?.usd
+          change24h = data[geckoId]?.usd_24h_change ?? 0
+        }
+      } catch {}
+
+      // Fallback: Binance
+      if (!price) {
+        try {
+          const binanceSymbol = `${symbol}USDT`
+          const res = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${binanceSymbol}`)
+          if (res.ok) {
+            const data = await res.json()
+            price = parseFloat(data.lastPrice)
+            change24h = parseFloat(data.priceChangePercent)
+          }
+        } catch {}
+      }
     }
-  }
 
-  // ── Stocks / Forex / Commodities: mock with tiny jitter ──
-  const mock = MOCK_PRICES[symbol.toUpperCase()]
-  if (mock) {
-    const jitter = (Math.random() - 0.5) * 0.005 // ±0.25%
-    return c.json({
-      price: Number((mock.price * (1 + jitter)).toFixed(4)),
-      change24h: mock.change24h,
-    })
-  }
+    if (!Number.isFinite(price) || price === 0) throw new Error('Invalid price')
 
-  return c.json({ error: 'Unknown symbol' }, 404)
+    priceCache.set(symbol, { price, change24h, fetchedAt: Date.now() })
+    return c.json({ symbol, price, change24h })
+
+  } catch (err: any) {
+    // Return stale cache if available
+    if (cached) {
+      return c.json({ symbol, price: cached.price, change24h: cached.change24h })
+    }
+    return c.json({ error: 'Price unavailable' }, 502)
+  }
 })
 
 export default app
