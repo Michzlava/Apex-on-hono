@@ -12,9 +12,7 @@ import { createDb } from './db/client'
 
 const app = new Hono()
 
-// 1. CORS — NEVER return undefined when credentials: true is set.
-// For same-domain this echoes the request origin. For cross-domain,
-// replace with an explicit allow-list: ['https://your-domain.com']
+// CORS: never return undefined when credentials: true
 app.use('*', cors({
   origin: (origin, c) => {
     return origin || new URL(c.req.url).origin
@@ -24,17 +22,15 @@ app.use('*', cors({
   allowHeaders: ['Content-Type', 'Authorization'],
 }))
 
-// 2. Attach db instance to context on every request
+// Attach db instance to context on every request
 app.use('*', async (c, next) => {
   const dbUrl = (c.env as any).DATABASE_URL
   c.set('db', createDb(dbUrl))
   await next()
 })
 
-// 3. Basic root
 app.get('/', (c) => c.json({ status: 'ok', message: 'Apex API is running!' }))
 
-// 4. Health check
 app.get('/api/health', (c) => {
   return c.json({
     status: 'Worker is alive!',
@@ -43,12 +39,12 @@ app.get('/api/health', (c) => {
   })
 })
 
-// 5. Public API routes
+// Public API routes
 app.route('/api/auth', authRoutes)
 app.route('/api/market', marketRoutes)
 app.route('/api/news', newsRoutes)
 
-// 6. Protected API routes — middleware FIRST, then mount routes
+// Protected API routes — middleware FIRST, then mount routes
 app.use('/api/admin/*', authMiddleware)
 app.route('/api/admin/deposit-methods', depositMethodsRoutes)
 
@@ -59,7 +55,7 @@ app.route('/api/user/deposits', depositRoutes)
 app.use('/api/transaction/*', authMiddleware)
 app.route('/api/transaction/trade', tradeRoutes)
 
-// 7. SPA Catch-all (MUST BE LAST)
+// SPA Catch-all (MUST BE LAST)
 app.get('*', (c) => {
   return (c.env as any).ASSETS.fetch(c.req.raw)
 })
