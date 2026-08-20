@@ -8,6 +8,10 @@ import DashboardOverview from './pages/DashboardOverview'
 import DepositPage from './pages/DepositPage'
 import TradePage from './pages/TradePage'
 import AssetsPage from './pages/AssetsPage'
+import AdminLoginPage from './pages/AdminLoginPage'
+import AdminLayout from './components/AdminLayout'
+import AdminDashboardPage from './pages/AdminDashboardPage'
+import AdminUserDetailPage from './pages/AdminUserDetailPage'
 
 // ── 404 Page ──────────────────────────────────────────────────────────────────
 
@@ -67,6 +71,7 @@ function AppRoutes() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/signup" element={<SignupPage />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/admin/login" element={<AdminLoginPage />} />
       
       {/* Protected Dashboard */}
       <Route element={<ProtectedRoute />}>
@@ -77,6 +82,14 @@ function AppRoutes() {
           <Route path="trade" element={<TradePage />} />
           
           <Route path="*" element={<NotFound />} />
+        </Route>
+      </Route>
+
+      {/* Protected Admin */}
+      <Route element={<ProtectedRoute />}>
+        <Route path="/dashboard/admin" element={<AdminLayout />}>
+          <Route index element={<AdminDashboardPage />} />
+          <Route path="users/:id" element={<AdminUserDetailPage />} />
         </Route>
       </Route>
 
