@@ -21,7 +21,14 @@ import AdminSubscriptionsPage from './pages/AdminSubscriptionsPage'
 import AdminSettingsPage from './pages/AdminSettingsPage'
 import AdminUserDetailPage from './pages/AdminUserDetailPage'
 
-// ... rest of your file stays the same until AppRoutes ...
+function ProtectedRoute() {
+  const { user } = useAuth()
+  return user ? <Outlet /> : <Navigate to="/login" replace />
+}
+
+function NotFound() {
+  return <div>404 Not Found</div>
+}
 
 function AppRoutes() {
   return (
@@ -62,3 +69,13 @@ function AppRoutes() {
     </Routes>
   )
 }
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppRoutes />
+    </AuthProvider>
+  )
+}
+
+export default App
