@@ -1,6 +1,7 @@
-      import { Hono } from 'hono';
-import { eq, desc } from 'drizzle-orm';
-import { users, activityLogs } from '../db/schema';
+import { Hono } from 'hono';
+import { eq, desc, and, sum } from 'drizzle-orm';
+import { users, activityLogs, transactions, deposits } from '../db/schema';
+import bcrypt from 'bcryptjs';
 
 const app = new Hono();
 
@@ -46,18 +47,8 @@ app.patch('/', async (c) => {
   const db = c.get('db');
   const body = await c.req.json();
 
-  const {
-    userId,
-    portfolioBalance,
-    portfolioChangePercent,
-    realisedPnl,
-    volatility,
-    riskLabel,
-  } = body;
-
-  if (!userId) {
-    return c.json({ error: 'userId required' }, 400);
-  }
+  const { userId, portfolioBalance, portfolioChangePercent, realisedPnl, volatility, riskLabel } = body;
+  if (!userId) return c.json({ error: 'userId required' }, 400);
 
   const [updated] = await db
     .update(users)
@@ -70,10 +61,7 @@ app.patch('/', async (c) => {
       updatedAt: new Date(),
     })
     .where(eq(users.id, userId))
-    .returning({
-      id: users.id,
-      portfolioBalance: users.portfolioBalance,
-    });
+    .returning({ id: users.id, portfolioBalance: users.portfolioBalance });
 
   const balanceNum = Number(updated.portfolioBalance);
 
@@ -109,9 +97,7 @@ app.get('/:id', async (c) => {
     .where(eq(users.id, id))
     .limit(1);
 
-  if (!user) {
-    return c.json({ error: 'User not found' }, 404);
-  }
+  if (!user) return c.json({ error: 'User not found' }, 404);
 
   return c.json({
     user: {
@@ -173,6 +159,136 @@ app.put('/:id', async (c) => {
       portfolioBalance: Number(user.portfolioBalance),
     },
   });
+});
+
+// POST /api/admin/users/:id/balance — add/subtract balance
+app.post('/:id/balance', async (c) => {
+  if (!isAdmin(c)) return c.json({ error: 'Forbidden' }, 403);
+  const db = c.get('db');
+  const id = c.req.param('id');
+  const { amount, type, source, note } = await c.req.json();
+
+  if (!amount || isNaN(parseFloat(amount))) {
+    return c.json({ error: 'Valid amount is required' }, 400);
+  }
+  if (!['add', 'subtract'].includes(type)) {
+    return c.json({ error: 'type must be add or subtract' }, 400);
+  }
+
+  const parsedAmount = parseFloat(amount);
+
+  try {
+    const updatedUser = await db.transaction(async (tx) => {
+      const [currentUser] = await tx
+        .select({
+          portfolioBalance: users.portfolioBalance,
+          realisedPnl: users.realisedPnl,
+        })
+        .from(users)
+        .where(eq(users.id, id))
+        .limit(1);
+
+      if (!currentUser) {
+        throw new Error('User not found');
+      }
+
+      const currentBalance = Number(currentUser.portfolioBalance) || 0;
+      const delta = type === 'add' ? parsedAmount : -parsedAmount;
+      const newBalance = currentBalance + delta;
+
+      const isDeposit = type === 'add' && !source?.startsWith('trade');
+      const pnlDelta = isDeposit ? 0 : delta;
+      const newRealisedPnl = (Number(currentUser.realisedPnl) || 0) + pnlDelta;
+
+      const depositAgg = await tx
+        .select({ total: sum(deposits.amount) })
+        .from(deposits)
+        .where(and(eq(deposits.userId, id), eq(deposits.status, 'COMPLETED')));
+
+      const totalDeposited = Number(depositAgg[0]?.total) || 0;
+      const newChangePercent = totalDeposited > 0
+        ? (newRealisedPnl / totalDeposited) * 100
+        : 0;
+
+      const txType =
+        source === 'trade_profit' ? 'Trade' :
+        source === 'trade_loss'   ? 'Trade' :
+        type === 'add'            ? 'Deposit' :
+                                    'Withdrawal';
+
+      const txAction =
+        source === 'trade_profit' ? 'Profit' :
+        source === 'trade_loss'   ? 'Loss' :
+        note                      ? note :
+                                    undefined;
+
+      const [user] = await tx
+        .update(users)
+        .set({
+          previousBalance: String(currentBalance),
+          portfolioBalance: String(newBalance),
+          realisedPnl: String(newRealisedPnl),
+          portfolioChangePercent: String(newChangePercent),
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, id))
+        .returning({
+          id: users.id,
+          portfolioBalance: users.portfolioBalance,
+          realisedPnl: users.realisedPnl,
+          portfolioChangePercent: users.portfolioChangePercent,
+          previousBalance: users.previousBalance,
+        });
+
+      await tx.insert(transactions).values({
+        id: crypto.randomUUID(),
+        userId: id,
+        type: txType,
+        amount: String(parsedAmount),
+        status: 'COMPLETED',
+        asset: 'USD',
+        ...(txAction ? { action: txAction } : {}),
+      });
+
+      return user;
+    });
+
+    console.log(
+      `[Admin Balance] user=${id} source=${source || type} ` +
+      `old=${Number(updatedUser.previousBalance)} → new=${Number(updatedUser.portfolioBalance)} ` +
+      `pnlDelta=${type === 'add' && !source?.startsWith('trade') ? 0 : (type === 'add' ? parsedAmount : -parsedAmount)} ` +
+      `pnl=${Number(updatedUser.realisedPnl).toFixed(2)} pct=${Number(updatedUser.portfolioChangePercent).toFixed(2)}%`
+    );
+
+    return c.json({ user: updatedUser });
+  } catch (err: any) {
+    if (err.message === 'User not found') {
+      return c.json({ error: 'User not found' }, 404);
+    }
+    console.error('[Admin Balance] Error:', err);
+    return c.json({ error: err.message || 'Failed' }, 500);
+  }
+});
+
+// POST /api/admin/users/:id/password — reset password
+app.post('/:id/password', async (c) => {
+  if (!isAdmin(c)) return c.json({ error: 'Forbidden' }, 403);
+  const db = c.get('db');
+  const id = c.req.param('id');
+  const { password } = await c.req.json();
+
+  if (!password || password.length < 6) {
+    return c.json({ error: 'Password must be at least 6 characters' }, 400);
+  }
+
+  const hashed = await bcrypt.hash(password, 12);
+
+  await db
+    .update(users)
+    .set({ password: hashed, updatedAt: new Date() })
+    .where(eq(users.id, id));
+
+  return c.json({ success: true });
 });
 
 export default app;
