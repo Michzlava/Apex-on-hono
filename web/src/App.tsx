@@ -7,6 +7,7 @@ import DashboardLayout from './components/DashboardLayout'
 import DashboardOverview from './pages/DashboardOverview'
 import DepositPage from './pages/DepositPage'
 import TradePage from './pages/TradePage'
+import AssetsPage from './pages/AssetsPage'
 
 // ── 404 Page ──────────────────────────────────────────────────────────────────
 
@@ -71,16 +72,15 @@ function AppRoutes() {
       <Route element={<ProtectedRoute />}>
         <Route path="/dashboard" element={<DashboardLayout />}>
           <Route index element={<DashboardOverview />} />
+          <Route path="assets" element={<AssetsPage />} />
           <Route path="deposit" element={<DepositPage />} />
           <Route path="trade" element={<TradePage />} />
-          {/* Add new real pages here as you build them */}
           
-          {/* 404 for any /dashboard/* that isn't built yet */}
           <Route path="*" element={<NotFound />} />
         </Route>
       </Route>
 
-      {/* Global 404 for everything else */}
+      {/* Global 404 */}
       <Route path="*" element={<NotFound />} />
     </Routes>
   )
