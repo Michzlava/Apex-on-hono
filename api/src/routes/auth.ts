@@ -113,7 +113,7 @@ app.get('/me', async (c) => {
   const db = c.get('db')
   const token = getCookie(c, 'apex_token')
 
-  // Temporary diagnostic: check Wrangler logs after a refresh to see if the cookie arrives
+  // Temporary diagnostic: check Wrangler logs after a refresh
   console.log('[AUTH /me] Cookie header:', c.req.header('Cookie'))
   console.log('[AUTH /me] Token parsed:', token ? 'present' : 'MISSING')
 
