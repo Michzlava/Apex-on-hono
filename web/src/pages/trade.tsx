@@ -55,6 +55,27 @@ const ASSET_ICONS: Record<string, string> = {
   USDJPY: '🇯🇵',
 };
 
+// ── TradingView symbol mapping (exchange:symbol) ──────────────────────────────
+
+const TV_SYMBOL_MAP: Record<string, string> = {
+  BTCUSD: 'BINANCE:BTCUSDT',
+  ETHUSD: 'BINANCE:ETHUSDT',
+  SOLUSD: 'BINANCE:SOLUSDT',
+  BNBUSD: 'BINANCE:BNBUSDT',
+  AAPL:   'NASDAQ:AAPL',
+  TSLA:   'NASDAQ:TSLA',
+  NVDA:   'NASDAQ:NVDA',
+  MSFT:   'NASDAQ:MSFT',
+  AMZN:   'NASDAQ:AMZN',
+  GOOGL:  'NASDAQ:GOOGL',
+  USOIL:  'TVC:USOIL',
+  UKOIL:  'TVC:UKOIL',
+  XAUUSD: 'OANDA:XAUUSD',
+  EURUSD: 'OANDA:EURUSD',
+  GBPUSD: 'OANDA:GBPUSD',
+  USDJPY: 'OANDA:USDJPY',
+};
+
 // ── Type badge ────────────────────────────────────────────────────────────────
 
 const TYPE_BADGE: Record<string, { bg: string; color: string }> = {
@@ -182,12 +203,15 @@ export default function TradePage() {
       const sym = getPriceSymbol(a.symbol);
       try {
         const res = await fetch(`/api/price?symbol=${sym}`);
+        if (!res.ok) throw new Error(`Price fetch failed: ${res.status}`);
         const data = await res.json();
         if (data.price) setDropdownPrices(prev => ({
           ...prev,
           [a.symbol]: { price: data.price, change24h: data.change24h ?? 0 },
         }));
-      } catch {}
+      } catch (err) {
+        console.error(`[price] ${a.symbol}:`, err);
+      }
     });
   }, []);
 
@@ -213,11 +237,14 @@ export default function TradePage() {
       try {
         setPriceLoading(true);
         const res = await fetch(`/api/price?symbol=${baseSymbol}`);
-        if (!res.ok) throw new Error();
+        if (!res.ok) throw new Error(`Price API returned ${res.status}`);
         const data = await res.json();
         if (cancelled) return;
-        const p = data.price as number;
+        if (!data.price) throw new Error('No price in response');
+
+        const p = Number(data.price);
         setPrice(prev => { setPrevPrice(prev); return p; });
+
         const spread = p * 0.0005;
         setAsks(
           Array.from({ length: 5 }, (_, i) => ({
@@ -231,8 +258,9 @@ export default function TradePage() {
             amount: (Math.random() * 1.5 + 0.1).toFixed(4),
           })),
         );
-      } catch {
-        // silent
+      } catch (err: any) {
+        console.error('[live price]', err);
+        if (!cancelled) toast.error('Price data unavailable');
       } finally {
         if (!cancelled) setPriceLoading(false);
       }
@@ -298,10 +326,10 @@ export default function TradePage() {
 
   // ── TradingView chart src ─────────────────────────────────────────────────
 
-  const chartSrc = useMemo(() =>
-    `https://s.tradingview.com/widgetembed/?symbol=${asset}&interval=15&theme=${isDark ? 'dark' : 'light'}&style=1&locale=en&hide_top_toolbar=0&hide_legend=0&save_image=0`,
-    [asset, isDark],
-  );
+  const chartSrc = useMemo(() => {
+    const tvSymbol = TV_SYMBOL_MAP[asset] ?? asset;
+    return `https://s.tradingview.com/widgetembed/?symbol=${encodeURIComponent(tvSymbol)}&interval=15&theme=${isDark ? 'dark' : 'light'}&style=1&locale=en&hide_top_toolbar=0&hide_legend=0&save_image=0`;
+  }, [asset, isDark]);
 
   // ── Render ────────────────────────────────────────────────────────────────
 
