@@ -6,7 +6,49 @@ import LoginPage from './pages/LoginPage'
 import DashboardLayout from './components/DashboardLayout'
 import DashboardOverview from './pages/DashboardOverview'
 import DepositPage from './pages/DepositPage'
-import TradePage from './pages/TradePage' // ← ADD THIS
+import TradePage from './pages/TradePage'
+
+// ── 404 Page ──────────────────────────────────────────────────────────────────
+
+function NotFound() {
+  return (
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'var(--bg)',
+      color: 'var(--ink)',
+      fontFamily: 'var(--sans)',
+      gap: '12px',
+      padding: '20px',
+      textAlign: 'center',
+    }}>
+      <h1 style={{ fontSize: '4rem', fontWeight: 700, color: 'var(--ink-faint)', margin: 0, letterSpacing: '-0.04em' }}>
+        404
+      </h1>
+      <p style={{ fontSize: '0.9rem', color: 'var(--ink-dim)', margin: 0 }}>
+        This page doesn't exist yet.
+      </p>
+      <a
+        href="/dashboard"
+        style={{
+          color: 'var(--accent)',
+          textDecoration: 'none',
+          fontSize: '0.85rem',
+          fontWeight: 600,
+          marginTop: '8px',
+          fontFamily: 'var(--mono)',
+        }}
+      >
+        ← Back to Dashboard
+      </a>
+    </div>
+  )
+}
+
+// ── Auth Guard ────────────────────────────────────────────────────────────────
 
 function ProtectedRoute() {
   const { user, loading } = useAuth()
@@ -15,29 +57,31 @@ function ProtectedRoute() {
   return <Outlet />
 }
 
+// ── Routes ───────────────────────────────────────────────────────────────────
+
 function AppRoutes() {
   return (
     <Routes>
+      {/* Public */}
       <Route path="/" element={<LandingPage />} />
       <Route path="/signup" element={<SignupPage />} />
       <Route path="/login" element={<LoginPage />} />
       
+      {/* Protected Dashboard */}
       <Route element={<ProtectedRoute />}>
         <Route path="/dashboard" element={<DashboardLayout />}>
           <Route index element={<DashboardOverview />} />
           <Route path="deposit" element={<DepositPage />} />
-          <Route path="markets" element={<div>Markets Page</div>} />
-          <Route path="trade" element={<TradePage />} /> {/* ← FIXED */}
-          <Route path="assets" element={<div>Assets Page</div>} />
-          <Route path="withdraw" element={<div>Withdraw Page</div>} />
-          <Route path="support" element={<div>Support Page</div>} />
-          <Route path="settings" element={<div>Settings Page</div>} />
-          <Route path="notifications" element={<div>Notifications Page</div>} />
-          <Route path="kyc" element={<div>KYC Page</div>} />
-          <Route path="subscription" element={<div>Subscription Page</div>} />
-          <Route path="history" element={<div>History Page</div>} />
+          <Route path="trade" element={<TradePage />} />
+          {/* Add new real pages here as you build them */}
+          
+          {/* 404 for any /dashboard/* that isn't built yet */}
+          <Route path="*" element={<NotFound />} />
         </Route>
       </Route>
+
+      {/* Global 404 for everything else */}
+      <Route path="*" element={<NotFound />} />
     </Routes>
   )
 }
