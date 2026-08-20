@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
-import { Logo } from './Logo';
+import   Logo  from './Logo';
 import { useAuth } from '../context/AuthContext';
 import '../pages/dashboard.css';
 
