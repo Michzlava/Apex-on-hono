@@ -27,7 +27,7 @@ const AuthContext = createContext<AuthContextType>({
   login: async () => ({ success: false }),
 });
 
-// Helper: ALWAYS include credentials so cookies are sent and received
+// CRITICAL: Always include credentials so cookies are sent and received
 async function apiFetch(path: string, options: RequestInit = {}) {
   const res = await fetch(path, {
     ...options,
@@ -51,16 +51,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function checkAuth() {
     try {
+      console.log('[AUTH] Checking session...')
       const res = await apiFetch('/api/auth/me');
+
+      console.log('[AUTH] /me status:', res.status)
 
       if (res.ok) {
         const data = await res.json();
+        console.log('[AUTH] User:', data.user?.email || 'null')
         setUser(data.user);
       } else {
+        console.log('[AUTH] Not authenticated')
         setUser(null);
       }
     } catch (error) {
-      console.error('checkAuth error:', error);
+      console.error('[AUTH] checkAuth error:', error);
       setUser(null);
     } finally {
       setLoading(false);
