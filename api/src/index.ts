@@ -12,19 +12,25 @@ import { createDb } from './db/client'
 
 const app = new Hono()
 
-// 1. Wide-open CORS
+// 1. CORS — fixed to never return undefined when credentials: true
+// For same-domain, this simply echoes back the request origin.
+// If you ever go cross-domain, replace this with an explicit allow-list.
 app.use('*', cors({
-  origin: (origin) => origin,
+  origin: (origin, c) => {
+    // Same-origin requests often have no Origin header.
+    // We must return a valid origin string when credentials: true is set.
+    return origin || new URL(c.req.url).origin
+  },
   credentials: true,
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization'],
 }))
 
 // 2. Attach db instance to context on every request
-app.use('*', (c, next) => {
+app.use('*', async (c, next) => {
   const dbUrl = (c.env as any).DATABASE_URL
   c.set('db', createDb(dbUrl))
-  return next()
+  await next()
 })
 
 // 3. Basic root
@@ -34,9 +40,8 @@ app.get('/', (c) => c.json({ status: 'ok', message: 'Apex API is running!' }))
 app.get('/api/health', (c) => {
   return c.json({
     status: 'Worker is alive!',
-    hasDbUrl: !!(process.env.DATABASE_URL || (c.env as any).DATABASE_URL),
-    hasJwtSecret: !!(process.env.JWT_SECRET || (c.env as any).JWT_SECRET),
-    message: 'If these are false, add them in Cloudflare Dashboard -> Settings -> Variables'
+    hasDbUrl: !!(c.env as any).DATABASE_URL,
+    hasJwtSecret: !!(c.env as any).JWT_SECRET,
   })
 })
 
@@ -44,14 +49,16 @@ app.get('/api/health', (c) => {
 app.route('/api/auth', authRoutes)
 app.route('/api/market', marketRoutes)
 app.route('/api/news', newsRoutes)
+
+// 6. Protected API routes — middleware FIRST, then mount routes
+app.use('/api/admin/*', authMiddleware)
 app.route('/api/admin/deposit-methods', depositMethodsRoutes)
 
-// 6. Protected API routes
 app.use('/api/user/*', authMiddleware)
-app.use('/api/admin/*', authMiddleware)
-app.use('/api/transaction/*', authMiddleware)
 app.route('/api/user/dashboard', dashboardRoutes)
 app.route('/api/user/deposits', depositRoutes)
+
+app.use('/api/transaction/*', authMiddleware)
 app.route('/api/transaction/trade', tradeRoutes)
 
 // 7. SPA Catch-all (MUST BE LAST)
