@@ -178,91 +178,93 @@ app.post('/:id/balance', async (c) => {
   const parsedAmount = parseFloat(amount);
 
   try {
-    // Step 1: fetch current user
-    const [currentUser] = await db
-      .select({
-        portfolioBalance: users.portfolioBalance,
-        realisedPnl: users.realisedPnl,
-      })
-      .from(users)
-      .where(eq(users.id, id))
-      .limit(1);
+    const updatedUser = await db.transaction(async (tx) => {
+      const [currentUser] = await tx
+        .select({
+          portfolioBalance: users.portfolioBalance,
+          realisedPnl: users.realisedPnl,
+        })
+        .from(users)
+        .where(eq(users.id, id))
+        .limit(1);
 
-    if (!currentUser) {
-      return c.json({ error: 'User not found' }, 404);
-    }
+      if (!currentUser) {
+        throw new Error('User not found');
+      }
 
-    // Step 2: compute new values
-    const currentBalance = Number(currentUser.portfolioBalance) || 0;
-    const delta = type === 'add' ? parsedAmount : -parsedAmount;
-    const newBalance = currentBalance + delta;
+      const currentBalance = Number(currentUser.portfolioBalance) || 0;
+      const delta = type === 'add' ? parsedAmount : -parsedAmount;
+      const newBalance = currentBalance + delta;
 
-    const isDeposit = type === 'add' && !source?.startsWith('trade');
-    const pnlDelta = isDeposit ? 0 : delta;
-    const newRealisedPnl = (Number(currentUser.realisedPnl) || 0) + pnlDelta;
+      const isDeposit = type === 'add' && !source?.startsWith('trade');
+      const pnlDelta = isDeposit ? 0 : delta;
+      const newRealisedPnl = (Number(currentUser.realisedPnl) || 0) + pnlDelta;
 
-    // Step 3: aggregate completed deposits for change %
-    const depositAgg = await db
-      .select({ total: sum(deposits.amount) })
-      .from(deposits)
-      .where(and(eq(deposits.userId, id), eq(deposits.status, 'COMPLETED')));
+      const depositAgg = await tx
+        .select({ total: sum(deposits.amount) })
+        .from(deposits)
+        .where(and(eq(deposits.userId, id), eq(deposits.status, 'COMPLETED')));
 
-    const totalDeposited = Number(depositAgg[0]?.total) || 0;
-    const newChangePercent = totalDeposited > 0
-      ? (newRealisedPnl / totalDeposited) * 100
-      : 0;
+      const totalDeposited = Number(depositAgg[0]?.total) || 0;
+      const newChangePercent = totalDeposited > 0
+        ? (newRealisedPnl / totalDeposited) * 100
+        : 0;
 
-    // Step 4: update user
-    const [updatedUser] = await db
-      .update(users)
-      .set({
-        previousBalance: String(currentBalance),
-        portfolioBalance: String(newBalance),
-        realisedPnl: String(newRealisedPnl),
-        portfolioChangePercent: String(newChangePercent),
-        updatedAt: new Date(),
-      })
-      .where(eq(users.id, id))
-      .returning({
-        id: users.id,
-        portfolioBalance: users.portfolioBalance,
-        realisedPnl: users.realisedPnl,
-        portfolioChangePercent: users.portfolioChangePercent,
-        previousBalance: users.previousBalance,
+      const txType =
+        source === 'trade_profit' ? 'Trade' :
+        source === 'trade_loss'   ? 'Trade' :
+        type === 'add'            ? 'Deposit' :
+                                    'Withdrawal';
+
+      const txAction =
+        source === 'trade_profit' ? 'Profit' :
+        source === 'trade_loss'   ? 'Loss' :
+        note                      ? note :
+                                    undefined;
+
+      const [user] = await tx
+        .update(users)
+        .set({
+          previousBalance: String(currentBalance),
+          portfolioBalance: String(newBalance),
+          realisedPnl: String(newRealisedPnl),
+          portfolioChangePercent: String(newChangePercent),
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, id))
+        .returning({
+          id: users.id,
+          portfolioBalance: users.portfolioBalance,
+          realisedPnl: users.realisedPnl,
+          portfolioChangePercent: users.portfolioChangePercent,
+          previousBalance: users.previousBalance,
+        });
+
+      await tx.insert(transactions).values({
+        id: crypto.randomUUID(),
+        userId: id,
+        type: txType,
+        amount: String(parsedAmount),
+        status: 'COMPLETED',
+        asset: 'USD',
+        ...(txAction ? { action: txAction } : {}),
       });
 
-    // Step 5: insert transaction record
-    const txType =
-      source === 'trade_profit' ? 'Trade' :
-      source === 'trade_loss'   ? 'Trade' :
-      type === 'add'            ? 'Deposit' :
-                                  'Withdrawal';
-
-    const txAction =
-      source === 'trade_profit' ? 'Profit' :
-      source === 'trade_loss'   ? 'Loss' :
-      note                      ? note :
-                                  undefined;
-
-    await db.insert(transactions).values({
-      id: crypto.randomUUID(),
-      userId: id,
-      type: txType,
-      amount: String(parsedAmount),
-      status: 'COMPLETED',
-      asset: 'USD',
-      ...(txAction ? { action: txAction } : {}),
+      return user;
     });
 
     console.log(
       `[Admin Balance] user=${id} source=${source || type} ` +
-      `old=${currentBalance} → new=${newBalance} ` +
-      `pnlDelta=${pnlDelta} ` +
-      `pnl=${newRealisedPnl.toFixed(2)} pct=${newChangePercent.toFixed(2)}%`
+      `old=${Number(updatedUser.previousBalance)} → new=${Number(updatedUser.portfolioBalance)} ` +
+      `pnlDelta=${type === 'add' && !source?.startsWith('trade') ? 0 : (type === 'add' ? parsedAmount : -parsedAmount)} ` +
+      `pnl=${Number(updatedUser.realisedPnl).toFixed(2)} pct=${Number(updatedUser.portfolioChangePercent).toFixed(2)}%`
     );
 
     return c.json({ user: updatedUser });
   } catch (err: any) {
+    if (err.message === 'User not found') {
+      return c.json({ error: 'User not found' }, 404);
+    }
     console.error('[Admin Balance] Error:', err);
     return c.json({ error: err.message || 'Failed' }, 500);
   }
