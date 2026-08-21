@@ -22,12 +22,48 @@ import AdminSettingsPage from './pages/AdminSettingsPage'
 import AdminUserDetailPage from './pages/AdminUserDetailPage'
 
 function ProtectedRoute() {
-  const { user } = useAuth()
-  return user ? <Outlet /> : <Navigate to="/login" replace />
+  const { user, loading } = useAuth()
+  if (loading) return <div style={{ padding: '20px', color: 'white' }}>Loading...</div>
+  if (!user) return <Navigate to="/login" replace />
+  return <Outlet />
 }
 
 function NotFound() {
-  return <div>404 Not Found</div>
+  return (
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'var(--bg)',
+      color: 'var(--ink)',
+      fontFamily: 'var(--sans)',
+      gap: '12px',
+      padding: '20px',
+      textAlign: 'center',
+    }}>
+      <h1 style={{ fontSize: '4rem', fontWeight: 700, color: 'var(--ink-faint)', margin: 0, letterSpacing: '-0.04em' }}>
+        404
+      </h1>
+      <p style={{ fontSize: '0.9rem', color: 'var(--ink-dim)', margin: 0 }}>
+        This page doesn't exist yet.
+      </p>
+      <a
+        href="/dashboard"
+        style={{
+          color: 'var(--accent)',
+          textDecoration: 'none',
+          fontSize: '0.85rem',
+          fontWeight: 600,
+          marginTop: '8px',
+          fontFamily: 'var(--mono)',
+        }}
+      >
+        ← Back to Dashboard
+      </a>
+    </div>
+  )
 }
 
 function AppRoutes() {
