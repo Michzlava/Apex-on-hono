@@ -1,0 +1,496 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   ADMIN SETTINGS PAGE — Deposit Methods & Platform Config
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Page Container ──────────────────────────────────────────────────────── */
+.adm {
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0;
+  font-family: var(--sans);
+  color: var(--ink);
+  background: transparent;
+}
+
+/* ── Header ────────────────────────────────────────────────────────────── */
+.adm-hdr {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 22px;
+}
+.adm-brand {
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.18em;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.adm-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+}
+
+/* Back button (reused from AdminDashboard.css but shown here for clarity) */
+.adm-back-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink-dim);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.12s;
+}
+.adm-back-btn:hover {
+  background: var(--surface-hover);
+  color: var(--ink);
+}
+
+/* ── Section Header ──────────────────────────────────────────────────────── */
+.adm-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.adm-section-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+.adm-section-sub {
+  font-size: 0.65rem;
+  color: var(--ink-faint);
+  margin-top: 2px;
+}
+
+/* ── Add Button ────────────────────────────────────────────────────────── */
+.adm-add-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--bg-adm);
+  border: none;
+  font-family: var(--sans);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.adm-add-btn:hover { opacity: 0.85; }
+.adm-add-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── Method Cards ────────────────────────────────────────────────────────── */
+.adm-method-card {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--card-adm);
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.adm-method-card:hover {
+  border-color: var(--line);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+.adm-card-stripe {
+  position: absolute;
+  left: 0;
+  top: 14px;
+  bottom: 14px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  transition: background 0.2s;
+}
+.adm-method-ico {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+  border: 1px solid var(--line-strong);
+}
+.adm-method-addr {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  color: var(--ink-faint);
+  word-break: break-all;
+  line-height: 1.4;
+}
+
+/* ── Empty State ─────────────────────────────────────────────────────────── */
+.adm-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  border-radius: 12px;
+  background: var(--card-adm);
+  border: 1px solid var(--line-strong);
+  gap: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.adm-empty:hover {
+  border-color: var(--accent);
+}
+.adm-empty p {
+  font-size: 0.75rem;
+  color: var(--ink-faint);
+  margin: 0;
+}
+
+/* ── Toggle Switch ───────────────────────────────────────────────────────── */
+.adm-toggle {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+  cursor: pointer;
+}
+.adm-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.adm-toggle-track {
+  position: absolute;
+  inset: 0;
+  background: var(--line-strong);
+  border-radius: 20px;
+  transition: background 0.2s;
+}
+.adm-toggle-track::after {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 16px;
+  height: 16px;
+  background: var(--card-adm);
+  border-radius: 50%;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+.adm-toggle input:checked + .adm-toggle-track {
+  background: var(--accent);
+}
+.adm-toggle input:checked + .adm-toggle-track::after {
+  transform: translateX(16px);
+}
+.adm-toggle input:disabled + .adm-toggle-track {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── Icon Buttons ────────────────────────────────────────────────────────── */
+.adm-icon-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  color: var(--ink-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.12s;
+  padding: 0;
+}
+.adm-icon-btn:hover {
+  background: var(--surface-hover);
+  color: var(--ink);
+  border-color: var(--line);
+}
+.adm-icon-btn.danger {
+  color: var(--red);
+  border-color: var(--red-l);
+  background: var(--red-l);
+}
+.adm-icon-btn.danger:hover {
+  background: var(--red);
+  color: var(--bg-adm);
+  border-color: var(--red);
+}
+.adm-icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── Drawer / Modal ────────────────────────────────────────────────────── */
+.adm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 200;
+  backdrop-filter: blur(2px);
+}
+.adm-drawer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-width: 520px;
+  margin: 0 auto;
+  background: var(--card-adm);
+  border: 1px solid var(--line-strong);
+  border-bottom: none;
+  border-radius: 20px 20px 0 0;
+  padding: 16px 20px 24px;
+  z-index: 210;
+  max-height: 85vh;
+  overflow-y: auto;
+  animation: drawerSlideUp 0.25s cubic-bezier(0.32,0.72,0,1);
+}
+@keyframes drawerSlideUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.adm-drawer-handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 4px;
+  background: var(--line-strong);
+  margin: 0 auto 16px;
+}
+.adm-drawer-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0 0 20px;
+  letter-spacing: -0.01em;
+}
+.adm-drawer-footer {
+  display: flex;
+  gap: 10px;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line-strong);
+}
+
+/* ── Form Fields ─────────────────────────────────────────────────────────── */
+.adm-field {
+  margin-bottom: 14px;
+}
+.adm-field-label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--ink-dim);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.adm-input {
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1.5px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 0.78rem;
+  outline: none;
+  transition: border-color 0.15s, background 0.15s;
+  box-sizing: border-box;
+}
+.adm-input:focus {
+  border-color: var(--accent);
+  background: var(--card-adm);
+}
+.adm-input::placeholder {
+  color: var(--ink-faint);
+}
+textarea.adm-input {
+  resize: vertical;
+  min-height: 60px;
+}
+.adm-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* ── Icon Picker ───────────────────────────────────────────────────────── */
+.adm-icon-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.adm-icon-pick {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1.5px solid var(--line-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: all 0.12s;
+  user-select: none;
+}
+.adm-icon-pick:hover {
+  border-color: var(--accent);
+  background: var(--surface-hover);
+}
+.adm-icon-pick.sel {
+  border-color: var(--accent);
+  background: rgba(56, 189, 248, 0.12);
+  color: var(--accent);
+}
+
+/* ── Checkbox Row ────────────────────────────────────────────────────────── */
+.adm-checkbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  cursor: pointer;
+  transition: border-color 0.12s;
+}
+.adm-checkbox-row:hover {
+  border-color: var(--line);
+}
+.adm-checkbox-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+/* ── Drawer Buttons ──────────────────────────────────────────────────────── */
+.adm-btn-cancel {
+  flex: 1;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  color: var(--ink-dim);
+  font-family: var(--sans);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.adm-btn-cancel:hover {
+  background: var(--surface-hover);
+  color: var(--ink);
+}
+.adm-btn-save {
+  flex: 1;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: var(--accent);
+  border: none;
+  color: var(--bg-adm);
+  font-family: var(--sans);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.adm-btn-save:hover { opacity: 0.85; }
+.adm-btn-save:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── Toast ───────────────────────────────────────────────────────────────── */
+.adm-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  z-index: 300;
+  animation: toastSlideUp 0.3s cubic-bezier(0.32,0.72,0,1);
+  white-space: nowrap;
+}
+.adm-toast.ok {
+  background: var(--green-l);
+  color: var(--green);
+  border: 1px solid var(--green);
+}
+.adm-toast.err {
+  background: var(--red-l);
+  color: var(--red);
+  border: 1px solid var(--red);
+}
+@keyframes toastSlideUp {
+  from { transform: translateX(-50%) translateY(20px); opacity: 0; }
+  to { transform: translateX(-50%) translateY(0); opacity: 1; }
+}
+
+/* ── Error Banner ────────────────────────────────────────────────────────── */
+.adm-error-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--red-l);
+  color: var(--red);
+  font-size: 0.75rem;
+  margin-bottom: 16px;
+  border: 1px solid var(--red);
+}
+.adm-error-banner button {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--red);
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+/* ── Mobile Responsive ─────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .adm-row-2 { grid-template-columns: 1fr; }
+  .adm-drawer {
+    max-width: 100%;
+    border-radius: 16px 16px 0 0;
+    padding: 14px 16px 20px;
+  }
+  .adm-method-card {
+    padding: 12px;
+    gap: 10px;
+  }
+  .adm-method-ico {
+    width: 36px;
+    height: 36px;
+    font-size: 1rem;
+  }
+  .adm-title { font-size: 1.2rem; }
+}
