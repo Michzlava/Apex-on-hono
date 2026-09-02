@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, Plus, Edit, Trash2, Settings, ArrowLeft, Shield, AlertTriangle } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import './AdminSettings.css';
 
 interface DepositMethod {
