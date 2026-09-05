@@ -1,4 +1,8 @@
 import { Hono } from 'hono';
+import { marketPrices } from '../db/schema';
+import { eq, asc } from 'drizzle-orm';
+
+const app = new Hono();
 
 type MarketItem = {
   symbol: string;
@@ -8,144 +12,130 @@ type MarketItem = {
   changePercent: number;
 };
 
-const market = new Hono();
-
-/* ── tiny in-memory TTL cache (replaces Next.js `revalidate: 30`) ── */
+/* ── 30s in-memory cache ── */
 const TTL = 30_000;
-const cache = new Map<string, { at: number; data: any }>();
-const getCached = <T,>(key: string): T | null => {
-  const e = cache.get(key);
-  return e && Date.now() - e.at < TTL ? (e.data as T) : null;
-};
-const getStale = <T,>(key: string): T | null => (cache.get(key)?.data as T) ?? null;
-const setCached = (key: string, data: any) => cache.set(key, { at: Date.now(), data });
+let listCache: { at: number; data: MarketItem[] } | null = null;
 
-/* ── config (same sources as your Next.js app) ── */
-const FINNHUB_KEY = process.env.FINNHUB_API_KEY ?? ''; // Workers: use c.env instead
+const FALLBACK_ASSETS = [
+  { symbol: 'BTC', name: 'Bitcoin',  geckoId: 'bitcoin' },
+  { symbol: 'ETH', name: 'Ethereum', geckoId: 'ethereum' },
+  { symbol: 'SOL', name: 'Solana',   geckoId: 'solana' },
+  { symbol: 'BNB', name: 'BNB',      geckoId: 'binancecoin' },
+];
 
-const YAHOO_SYMBOL_MAP: Record<string, string> = {
-  USOIL: 'CL=F', UKOIL: 'BZ=F', XAUUSD: 'GC=F',
-  EURUSD: 'EURUSD=X', GBPUSD: 'GBPUSD=X', USDJPY: 'JPY=X',
-  AAPL: 'AAPL', TSLA: 'TSLA', NVDA: 'NVDA', MSFT: 'MSFT', AMZN: 'AMZN', GOOGL: 'GOOGL',
-};
-const CRYPTO_GECKO_MAP: Record<string, string> = {
-  BTC: 'bitcoin', ETH: 'ethereum', SOL: 'solana', BNB: 'binancecoin',
-};
-const STOCK_META: Record<string, { name: string; logoUrl: string }> = {
-  AAPL:  { name: 'Apple Inc.',    logoUrl: 'https://img.logo.dev/apple.com?token=pk_NdDz5eDOQFSlkWRQEkcXfQ' },
-  TSLA:  { name: 'Tesla Inc.',    logoUrl: 'https://img.logo.dev/tesla.com?token=pk_NdDz5eDOQFSlkWRQEkcXfQ' },
-  NVDA:  { name: 'NVIDIA Corp.',  logoUrl: 'https://img.logo.dev/nvidia.com?token=pk_NdDz5eDOQFSlkWRQEkcXfQ' },
-  MSFT:  { name: 'Microsoft',     logoUrl: 'https://img.logo.dev/microsoft.com?token=pk_NdDz5eDOQFSlkWRQEkcXfQ' },
-  AMZN:  { name: 'Amazon',        logoUrl: 'https://img.logo.dev/amazon.com?token=pk_NdDz5eDOQFSlkWRQEkcXfQ' },
-  GOOGL: { name: 'Alphabet Inc.', logoUrl: 'https://img.logo.dev/google.com?token=pk_NdDz5eDOQFSlkWRQEkcXfQ' },
+const GECKO_LOGOS: Record<string, string> = {
+  bitcoin: 'https://assets.coingecko.com/coins/images/1/small/bitcoin.png',
+  ethereum: 'https://assets.coingecko.com/coins/images/279/small/ethereum.png',
+  solana: 'https://assets.coingecko.com/coins/images/4128/small/solana.png',
+  binancecoin: 'https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png',
 };
 
-/* ── upstream fetchers ── */
-async function fetchCrypto(): Promise<MarketItem[]> {
+/* ── provider 1: Binance (bulk, no key) ── */
+async function binancePrices(symbols: string[]) {
+  const out = new Map<string, { price: number; chg: number }>();
   try {
-    const res = await fetch(
-      'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=bitcoin,ethereum,solana,binancecoin&order=market_cap_desc&sparkline=false&price_change_percentage=24h'
-    );
-    if (!res.ok) return [];
-    const data = await res.json();
-    const idMap: Record<string, string> = { bitcoin: 'BTC', ethereum: 'ETH', solana: 'SOL', binancecoin: 'BNB' };
-    return data.map((coin: any) => ({
-      symbol: idMap[coin.id] ?? String(coin.symbol).toUpperCase(),
-      name: coin.name,
-      logoUrl: coin.image,
-      price: coin.current_price ?? 0,
-      changePercent: coin.price_change_percentage_24h ?? 0,
-    }));
-  } catch { return []; }
-}
-
-async function fetchStocks(): Promise<MarketItem[]> {
-  if (!FINNHUB_KEY) return [];
-  try {
-    const results = await Promise.all(
-      Object.keys(STOCK_META).map(async (sym) => {
-        const res = await fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${FINNHUB_KEY}`);
-        const data = await res.json();
-        return {
-          symbol: sym,
-          name: STOCK_META[sym]?.name ?? sym,
-          logoUrl: STOCK_META[sym]?.logoUrl ?? '',
-          price: data.c ?? 0,
-          changePercent: data.dp ?? 0,
-        };
-      })
-    );
-    return results.filter(s => s.price > 0);
-  } catch { return []; }
-}
-
-/* ── GET /api/market — live list (crypto + stocks), 30s server cache ── */
-market.get('/', async (c) => {
-  const fresh = getCached<MarketItem[]>('list');
-  if (fresh) {
-    c.header('Cache-Control', 'public, max-age=30');
-    return c.json(fresh);
-  }
-  const [crypto, stocks] = await Promise.all([fetchCrypto(), fetchStocks()]);
-  const all = [...crypto, ...stocks];
-  if (all.length) setCached('list', all);
-  c.header('Cache-Control', 'public, max-age=30');
-  return c.json(all.length ? all : (getStale<MarketItem[]>('list') ?? []));
-});
-
-/* ── GET /api/market/price?symbol=X — Yahoo → CoinGecko → Binance ── */
-market.get('/price', async (c) => {
-  const symbol = (c.req.query('symbol') ?? '').toUpperCase();
-  if (!symbol) return c.json({ error: 'Missing symbol' }, 400);
-
-  const cached = getCached<{ symbol: string; price: number; change24h: number }>(`price:${symbol}`);
-  if (cached) return c.json({ ...cached, source: 'cache' });
-
-  try {
-    let price = 0;
-    let change24h = 0;
-
-    if (YAHOO_SYMBOL_MAP[symbol]) {
-      const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${YAHOO_SYMBOL_MAP[symbol]}`);
-      if (!res.ok) throw new Error('Yahoo fetch failed');
-      const data = await res.json();
-      const meta = data.chart.result[0].meta;
-      price = meta.regularMarketPrice;
-      const prevClose = meta.chartPreviousClose ?? meta.previousClose ?? price;
-      change24h = ((price - prevClose) / prevClose) * 100;
-    } else {
-      const geckoId = CRYPTO_GECKO_MAP[symbol];
-      if (!geckoId) return c.json({ error: `Symbol ${symbol} not found` }, 404);
-
-      try {
-        const res = await fetch(
-          `https://api.coingecko.com/api/v3/simple/price?ids=${geckoId}&vs_currencies=usd&include_24hr_change=true`
-        );
-        if (res.ok) {
-          const data = await res.json();
-          price = data[geckoId]?.usd;
-          change24h = data[geckoId]?.usd_24h_change ?? 0;
+    const pairs = symbols.map(s => `${s}USDT`);
+    const res = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbols=${encodeURIComponent(JSON.stringify(pairs))}`);
+    if (res.ok) {
+      for (const t of await res.json()) {
+        const p = parseFloat(t.lastPrice), d = parseFloat(t.priceChangePercent);
+        if (Number.isFinite(p) && p > 0) {
+          out.set(String(t.symbol).replace('USDT', ''), { price: p, chg: Number.isFinite(d) ? d : 0 });
         }
-      } catch {}
-
-      if (!price) {
-        try {
-          const res = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${symbol}USDT`);
-          if (res.ok) {
-            const data = await res.json();
-            price = parseFloat(data.lastPrice);
-            change24h = parseFloat(data.priceChangePercent);
-          }
-        } catch {}
       }
     }
+  } catch {}
+  return out;
+}
 
-    if (!Number.isFinite(price) || price === 0) throw new Error('Invalid price');
-    setCached(`price:${symbol}`, { symbol, price, change24h });
-    return c.json({ symbol, price, change24h, source: 'api' });
-  } catch {
-    return c.json({ error: 'Price unavailable' }, 502);
+/* ── provider 2: CoinGecko (bulk, optional demo key via c.env) ── */
+async function geckoPrices(geckoIds: string[], key?: string) {
+  const out = new Map<string, { price: number; chg: number }>();
+  try {
+    const headers: Record<string, string> = {};
+    if (key) headers['x-cg-demo-api-key'] = key;
+    const res = await fetch(
+      `https://api.coingecko.com/api/v3/simple/price?ids=${geckoIds.join(',')}&vs_currencies=usd&include_24hr_change=true`,
+      { headers }
+    );
+    if (res.ok) {
+      const data = await res.json();
+      for (const id of geckoIds) {
+        const p = data[id]?.usd;
+        if (Number.isFinite(p) && p > 0) out.set(id, { price: p, chg: data[id]?.usd_24h_change ?? 0 });
+      }
+    }
+  } catch {}
+  return out;
+}
+
+/* ── provider 3: Yahoo (per-symbol, no key, works from anywhere) ── */
+async function yahooPrice(yahooSym: string) {
+  try {
+    const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSym)}?interval=1d&range=1d`);
+    if (!res.ok) return null;
+    const meta = (await res.json())?.chart?.result?.[0]?.meta;
+    const price = meta?.regularMarketPrice;
+    const prev = meta?.chartPreviousClose ?? meta?.previousClose ?? price;
+    if (!Number.isFinite(price) || price <= 0) return null;
+    return { price, chg: prev ? ((price - prev) / prev) * 100 : 0 };
+  } catch { return null; }
+}
+
+/* ── GET /api/market ── */
+app.get('/', async (c) => {
+  if (listCache && Date.now() - listCache.at < TTL) {
+    c.header('Cache-Control', 'public, max-age=30');
+    return c.json(listCache.data);
   }
+
+  const db = c.get('db') as any;
+  const env = ((c as any).env ?? {}) as Record<string, string | undefined>;
+
+  /* 1) asset list: DB first, fallback built-in */
+  let assets: { symbol: string; name: string; geckoId: string }[] = [];
+  try {
+    const rows = await db
+      .select()
+      .from(marketPrices)
+      .where(eq(marketPrices.isActive, true))
+      .orderBy(asc(marketPrices.sortOrder));
+    assets = rows.map((r: any) => ({ symbol: r.symbol, name: r.name, geckoId: r.geckoId }));
+  } catch {}
+  if (!assets.length) assets = FALLBACK_ASSETS;
+
+  /* 2) prices: Binance → CoinGecko (gaps) → Yahoo (gaps) */
+  const prices = await binancePrices(assets.map(a => a.symbol));
+
+  const missing = assets.filter(a => !prices.has(a.symbol));
+  if (missing.length) {
+    const g = await geckoPrices(missing.map(a => a.geckoId), env.COINGECKO_API_KEY);
+    for (const a of missing) {
+      const hit = g.get(a.geckoId);
+      if (hit) prices.set(a.symbol, hit);
+    }
+  }
+
+  const stillMissing = assets.filter(a => !prices.has(a.symbol));
+  await Promise.all(stillMissing.map(async (a) => {
+    const hit = await yahooPrice(`${a.symbol}-USD`);
+    if (hit) prices.set(a.symbol, hit);
+  }));
+
+  /* 3) compose — always return the full list, never [] */
+  const data: MarketItem[] = assets.map(a => ({
+    symbol: a.symbol,
+    name: a.name,
+    logoUrl: GECKO_LOGOS[a.geckoId] ?? '',
+    price: prices.get(a.symbol)?.price ?? 0,
+    changePercent: prices.get(a.symbol)?.chg ?? 0,
+  }));
+
+  if (data.some(d => d.price > 0)) listCache = { at: Date.now(), data };
+  const final = data.some(d => d.price > 0) ? data : (listCache?.data ?? data);
+
+  c.header('Cache-Control', 'public, max-age=30');
+  return c.json(final);
 });
 
-export default market;
+export default app;
