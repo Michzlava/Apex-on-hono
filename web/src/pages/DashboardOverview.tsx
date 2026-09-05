@@ -392,14 +392,7 @@ export default function DashboardOverview() {
               </div>
               <p className="stat-sub">{profitPos} in profit · {lossPos} in loss</p>
             </div>
-            <div className="stat-cell">
-              <p className="stat-lbl"><span className="pip pip-gold" />Risk Profile</p>
-              <p className="stat-val">{riskLabel}</p>
-              <div className="risk-bar">
-                <span style={{ width: `${Math.min(100, volatility)}%` }} />
-              </div>
-              <p className="stat-sub">Volatility {fmt(volatility, 1)}%</p>
-            </div>
+            
           </section>
 
           {/* ── market board (live) ── */}
