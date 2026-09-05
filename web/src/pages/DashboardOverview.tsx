@@ -217,7 +217,7 @@ export default function DashboardOverview() {
     const X = (i: number) => (i / (series.length - 1)) * CHART_W;
     const Y = (v: number) =>
       flat
-        ? (CHART_H + PAD_T - PAD_B) / 2
+        ? 8
         : PAD_T + (1 - (v - min) / span) * (CHART_H - PAD_T - PAD_B);
     const pts = series.map((v, i) => ({ x: X(i), y: Y(v) }));
     const line = smoothPath(pts);
