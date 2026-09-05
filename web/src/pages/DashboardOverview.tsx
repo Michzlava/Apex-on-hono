@@ -114,19 +114,44 @@ export default function DashboardOverview() {
     } finally { setLoading(false); }
   }, []);
 
-  /* ── market list via backend (CoinGecko + Finnhub, 30s cache) ── */
+  /* ── market list via backend, with browser-side rescue ── */
   const fetchMarkets = useCallback(async () => {
     try {
       const res = await fetch('/api/market');
       if (res.ok) {
-        setMarkets(await res.json());
-        setFeed('live');
-      } else {
-        setFeed('sync');
+        const list = await res.json();
+        if (Array.isArray(list) && list.length > 0) {
+          setMarkets(list);
+          setFeed('live');
+          return;
+        }
       }
-    } catch {
-      setFeed('sync');
-    }
+    } catch {}
+
+    /* last-resort rescue: browser → CoinGecko */
+    try {
+      const res = await fetch(
+        'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana,binancecoin&vs_currencies=usd&include_24hr_change=true'
+      );
+      if (res.ok) {
+        const d = await res.json();
+        const rows = [
+          { symbol: 'BTC', name: 'Bitcoin',  id: 'bitcoin',     logoUrl: 'https://assets.coingecko.com/coins/images/1/small/bitcoin.png' },
+          { symbol: 'ETH', name: 'Ethereum', id: 'ethereum',    logoUrl: 'https://assets.coingecko.com/coins/images/279/small/ethereum.png' },
+          { symbol: 'SOL', name: 'Solana',   id: 'solana',      logoUrl: 'https://assets.coingecko.com/coins/images/4128/small/solana.png' },
+          { symbol: 'BNB', name: 'BNB',      id: 'binancecoin', logoUrl: 'https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png' },
+        ]
+          .map(r => ({ symbol: r.symbol, name: r.name, logoUrl: r.logoUrl, price: d[r.id]?.usd ?? 0, changePercent: d[r.id]?.usd_24h_change ?? 0 }))
+          .filter(r => r.price > 0);
+        if (rows.length) {
+          setMarkets(rows);
+          setFeed('live');
+          return;
+        }
+      }
+    } catch {}
+
+    setFeed('sync');
   }, []);
 
   useEffect(() => {
@@ -257,11 +282,11 @@ export default function DashboardOverview() {
         </div>
       )}
 
-      
+      <div className="v2-grid">
         {/* ══════════ MAIN COLUMN ══════════ */}
         <div className="v2-main">
 
-          {/* ── portfolio hero ── */}
+          {/* ── portfolio hero (no action buttons) ── */}
           <section className="vcard hero">
             <div className="hero-head">
               <div>
@@ -337,10 +362,9 @@ export default function DashboardOverview() {
                 <div className="hero-chart-empty">No balance data to plot yet</div>
               )}
             </div>
+          </section>
 
-            <div className="v2-side">
-
-          {/* quick actions */}
+          {/* ── quick actions (moved up, directly after hero) ── */}
           <section className="vcard">
             <div className="qa-grid">
               <Link className="qa-tile" to="/dashboard/deposit"><span className="qa-ico">＋</span>Deposit</Link>
@@ -436,8 +460,8 @@ export default function DashboardOverview() {
           </section>
         </div>
 
-        
-        
+        {/* ══════════ SIDE COLUMN ══════════ */}
+        <div className="v2-side">
 
           {/* activity timeline */}
           <section className="vcard">
@@ -454,7 +478,7 @@ export default function DashboardOverview() {
             </div>
           </section>
 
-          {/* transactions (replaces news) */}
+          {/* transactions */}
           <section className="vcard">
             <div className="side-head">
               <p className="section-title"><span className="pip pip-gold" />Transactions</p>
