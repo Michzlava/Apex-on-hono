@@ -8,6 +8,7 @@ import DashboardOverview from './pages/DashboardOverview'
 import DepositPage from './pages/DepositPage'
 import TradePage from './pages/TradePage'
 import AssetsPage from './pages/AssetsPage'
+import AssetsPage from './pages/MarketsPage'
 import AdminLoginPage from './pages/AdminLoginPage'
 
 // Admin pages — all in ./pages now
@@ -82,6 +83,7 @@ function AppRoutes() {
           <Route path="assets" element={<AssetsPage />} />
           <Route path="deposit" element={<DepositPage />} />
           <Route path="trade" element={<TradePage />} />
+          <Route path="markets" element={<MarketsPage />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Route>
