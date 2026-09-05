@@ -70,10 +70,17 @@ export const deposits = pgTable("Deposit", {
 });
 
 export const withdrawals = pgTable("Withdrawal", {
-  id: text("id").primaryKey(), userId: text("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
-  amount: decimal("amount", { precision: 19, scale: 8 }).notNull(), currency: text("currency").notNull().default("USD"),
-  status: withdrawalStatusEnum("status").notNull().default("PENDING"), note: text("note"), adminNote: text("adminNote"),
-  createdAt: timestamp("createdAt").notNull().defaultNow(), updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+  id: text("id").primaryKey(),
+  userId: text("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  amount: decimal("amount", { precision: 19, scale: 8 }).notNull(),
+  currency: text("currency").notNull().default("USD"),
+  status: withdrawalStatusEnum("status").notNull().default("PENDING_VERIFICATION"),
+  methodLabel: text("methodLabel"),       // <-- ADD THIS
+  destination: text("destination"),       // <-- ADD THIS
+  note: text("note"),
+  adminNote: text("adminNote"),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
 });
 
 export const notifications = pgTable("Notification", {
