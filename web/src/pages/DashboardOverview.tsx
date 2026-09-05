@@ -51,14 +51,6 @@ const PERIOD_CFG: Record<Period, { pts: number; vol: number }> = {
 };
 const CHART_W = 640, CHART_H = 176, PAD_T = 14, PAD_B = 16;
 
-/* used only if /api/market returns nothing, so the board still boots live */
-const LIVE_CATALOG: Record<string, { name: string; logoUrl: string }> = {
-  BTC: { name: 'Bitcoin',  logoUrl: 'https://assets.coingecko.com/coins/images/1/small/bitcoin.png' },
-  ETH: { name: 'Ethereum', logoUrl: 'https://assets.coingecko.com/coins/images/279/small/ethereum.png' },
-  SOL: { name: 'Solana',   logoUrl: 'https://assets.coingecko.com/coins/images/4128/small/solana.png' },
-  BNB: { name: 'BNB',      logoUrl: 'https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png' },
-};
-
 function fmt(n: number | null | undefined, d = 2) {
   return (n ?? 0).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
 }
@@ -113,7 +105,6 @@ export default function DashboardOverview() {
   const [flash, setFlash] = useState<Record<string, 'up' | 'dn'>>({});
   const [feed, setFeed] = useState<'live' | 'sync'>('sync');
   const prevPrices = useRef<Record<string, number>>({});
-  const wsOpen = useRef(false);
 
   /* ── user dashboard (unchanged endpoint) ── */
   const fetchDashboard = useCallback(async () => {
@@ -123,96 +114,29 @@ export default function DashboardOverview() {
     } finally { setLoading(false); }
   }, []);
 
-  /* ── asset list only; live prices come from the WebSocket below ── */
+  /* ── market list via backend (CoinGecko + Finnhub, 30s cache) ── */
   const fetchMarkets = useCallback(async () => {
     try {
       const res = await fetch('/api/market');
-      if (res.ok) setMarkets(await res.json());
-    } catch {}
+      if (res.ok) {
+        setMarkets(await res.json());
+        setFeed('live');
+      } else {
+        setFeed('sync');
+      }
+    } catch {
+      setFeed('sync');
+    }
   }, []);
 
   useEffect(() => {
     fetchDashboard();
     fetchMarkets();
+    const id = setInterval(fetchMarkets, 30_000);
+    return () => clearInterval(id);
   }, [fetchDashboard, fetchMarkets]);
 
-  /* ── live prices: Binance WS primary, REST polling fallback ── */
-  useEffect(() => {
-    const pairs = CRYPTO_SYMS.map(s => `${s}USDT`);
-    const streams = pairs.map(p => `${p.toLowerCase()}@miniTicker`).join('/');
-    let disposed = false;
-    let ws: WebSocket | null = null;
-    let retryTimer: number | undefined;
-
-    const applyTick = (sym: string, price: number, chg: number) => {
-      if (!Number.isFinite(price)) return;
-      setMarkets(prev => {
-        const i = prev.findIndex(m => m.symbol === sym);
-        if (i >= 0) {
-          const next = [...prev];
-          next[i] = { ...next[i], price, changePercent: chg };
-          return next;
-        }
-        const cat = LIVE_CATALOG[sym];
-        return [...prev, {
-          symbol: sym,
-          name: cat?.name ?? sym,
-          logoUrl: cat?.logoUrl ?? '',
-          price,
-          changePercent: chg,
-        }];
-      });
-    };
-
-    const restFallback = async () => {
-      try {
-        const res = await fetch(
-          `https://api.binance.com/api/v3/ticker/24hr?symbols=${encodeURIComponent(JSON.stringify(pairs))}`
-        );
-        if (!res.ok) return;
-        const list = await res.json();
-        for (const t of list) {
-          applyTick(String(t.symbol).replace('USDT', ''), parseFloat(t.lastPrice), parseFloat(t.priceChangePercent));
-        }
-      } catch {}
-    };
-
-    const connect = () => {
-      if (disposed) return;
-      try {
-        ws = new WebSocket(`wss://stream.binance.com:9443/stream?streams=${streams}`);
-      } catch { restFallback(); return; }
-      ws.onopen = () => { if (!disposed) { wsOpen.current = true; setFeed('live'); } };
-      ws.onmessage = ev => {
-        try {
-          const d = JSON.parse(ev.data)?.data;
-          if (!d?.s) return;
-          applyTick(String(d.s).replace('USDT', ''), parseFloat(d.c), parseFloat(d.P));
-        } catch {}
-      };
-      ws.onclose = () => {
-        wsOpen.current = false;
-        if (disposed) return;
-        setFeed('sync');
-        restFallback();
-        retryTimer = window.setTimeout(connect, 5000);
-      };
-      ws.onerror = () => { ws?.close(); };
-    };
-
-    connect();
-    const restTimer = window.setInterval(() => { if (!wsOpen.current) restFallback(); }, 15000);
-
-    return () => {
-      disposed = true;
-      wsOpen.current = false;
-      clearTimeout(retryTimer);
-      clearInterval(restTimer);
-      ws?.close();
-    };
-  }, []);
-
-  /* ── price flash on ticks ── */
+  /* ── price flash on backend updates ── */
   useEffect(() => {
     const next: Record<string, 'up' | 'dn'> = {};
     for (const m of markets) {
