@@ -189,10 +189,10 @@ export default function DashboardOverview() {
   const riskLabel     = data?.user.riskLabel ?? '—';
   const isProfitable  = profit >= 0;
 
-  /* ── NAV chart series ── */
+  /* ── NAV chart series (flat baseline when no balance yet) ── */
   const series = useMemo(() => {
-    if (!balance) return [] as number[];
     const cfg = PERIOD_CFG[period];
+    if (!balance) return Array.from({ length: cfg.pts + 1 }, () => 0);
     const start = balance / (1 + changePercent / 100);
     let s = (Math.round(balance) + cfg.pts * 97) % 233280 || 13;
     const rnd = () => { s = (s * 9301 + 49297) % 233280; return s / 233280; };
@@ -212,13 +212,17 @@ export default function DashboardOverview() {
   const chart = useMemo(() => {
     if (series.length < 2) return null;
     const min = Math.min(...series), max = Math.max(...series);
+    const flat = max === min;
     const span = max - min || 1;
     const X = (i: number) => (i / (series.length - 1)) * CHART_W;
-    const Y = (v: number) => PAD_T + (1 - (v - min) / span) * (CHART_H - PAD_T - PAD_B);
+    const Y = (v: number) =>
+      flat
+        ? (CHART_H + PAD_T - PAD_B) / 2
+        : PAD_T + (1 - (v - min) / span) * (CHART_H - PAD_T - PAD_B);
     const pts = series.map((v, i) => ({ x: X(i), y: Y(v) }));
     const line = smoothPath(pts);
     const area = `${line} L ${CHART_W} ${CHART_H} L 0 ${CHART_H} Z`;
-    return { min, max, X, Y, line, area };
+    return { min, max, flat, X, Y, line, area };
   }, [series]);
 
   const topGainers = [...markets].filter(m => m.changePercent >= 0)
@@ -237,7 +241,7 @@ export default function DashboardOverview() {
   };
 
   const onChartMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!chart) return;
+    if (!chart || chart.flat) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const frac = (e.clientX - rect.left) / rect.width;
     const idx = Math.max(0, Math.min(series.length - 1, Math.round(frac * (series.length - 1))));
@@ -246,7 +250,7 @@ export default function DashboardOverview() {
 
   const [balWhole, balCents] = fmt(balance).split('.');
   const posTotal = profitPos + lossPos;
-  const chartColor = isProfitable ? 'var(--pos)' : 'var(--neg)';
+  const chartColor = chart?.flat ? 'var(--tx3)' : isProfitable ? 'var(--pos)' : 'var(--neg)';
   const hi = hoverIdx !== null && series.length ? hoverIdx : null;
 
   if (loading) {
@@ -286,7 +290,7 @@ export default function DashboardOverview() {
         {/* ══════════ MAIN COLUMN ══════════ */}
         <div className="v2-main">
 
-          {/* ── portfolio hero (no action buttons) ── */}
+          {/* ── portfolio hero ── */}
           <section className="vcard hero">
             <div className="hero-head">
               <div>
@@ -313,7 +317,7 @@ export default function DashboardOverview() {
             </div>
 
             <div className="hero-chart" onMouseMove={onChartMove} onMouseLeave={() => setHoverIdx(null)}>
-              {chart ? (
+              {chart && (
                 <>
                   <svg viewBox={`0 0 ${CHART_W} ${CHART_H}`} preserveAspectRatio="none">
                     <defs>
@@ -328,10 +332,11 @@ export default function DashboardOverview() {
                         y2={PAD_T + f * (CHART_H - PAD_T - PAD_B)}
                         stroke="var(--line)" strokeDasharray="3 6" strokeWidth="1" />
                     ))}
-                    <path d={chart.area} fill="url(#nav-fill)" />
+                    {!chart.flat && <path d={chart.area} fill="url(#nav-fill)" />}
                     <path d={chart.line} fill="none" stroke={chartColor} strokeWidth="2"
-                      strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-                    {hi !== null && (
+                      strokeLinecap="round" vectorEffect="non-scaling-stroke"
+                      strokeDasharray={chart.flat ? '5 7' : undefined} />
+                    {hi !== null && !chart.flat && (
                       <line x1={chart.X(hi)} x2={chart.X(hi)} y1={PAD_T - 6} y2={CHART_H - 4}
                         stroke="var(--line2)" strokeWidth="1" strokeDasharray="2 3" />
                     )}
@@ -339,16 +344,18 @@ export default function DashboardOverview() {
                       r="3.5" fill={chartColor} />
                     <circle className="chart-ping" cx={chart.X(series.length - 1)} cy={chart.Y(series[series.length - 1])}
                       r="3.5" fill="none" stroke={chartColor} strokeWidth="1.5" />
-                    {hi !== null && (
+                    {hi !== null && !chart.flat && (
                       <circle cx={chart.X(hi)} cy={chart.Y(series[hi])} r="4"
                         fill="var(--bg0)" stroke={chartColor} strokeWidth="2" />
                     )}
                   </svg>
-                  <div className="hero-chart-meta">
-                    <span>H ${fmt(chart.max, 0)}</span>
-                    <span>L ${fmt(chart.min, 0)}</span>
-                  </div>
-                  {hi !== null && (
+                  {!chart.flat && (
+                    <div className="hero-chart-meta">
+                      <span>H ${fmt(chart.max, 0)}</span>
+                      <span>L ${fmt(chart.min, 0)}</span>
+                    </div>
+                  )}
+                  {hi !== null && !chart.flat && (
                     <div className="chart-tip" style={{
                       left: `${(chart.X(hi) / CHART_W) * 100}%`,
                       top: `${(chart.Y(series[hi]) / CHART_H) * 100}%`,
@@ -358,13 +365,11 @@ export default function DashboardOverview() {
                     </div>
                   )}
                 </>
-              ) : (
-                <div className="hero-chart-empty">No balance data to plot yet</div>
               )}
             </div>
           </section>
 
-          {/* ── quick actions (moved up, directly after hero) ── */}
+          {/* ── quick actions (directly after hero) ── */}
           <section className="vcard">
             <div className="qa-grid">
               <Link className="qa-tile" to="/dashboard/deposit"><span className="qa-ico">＋</span>Deposit</Link>
@@ -392,7 +397,14 @@ export default function DashboardOverview() {
               </div>
               <p className="stat-sub">{profitPos} in profit · {lossPos} in loss</p>
             </div>
-            
+            <div className="stat-cell">
+              <p className="stat-lbl"><span className="pip pip-gold" />Risk Profile</p>
+              <p className="stat-val">{riskLabel}</p>
+              <div className="risk-bar">
+                <span style={{ width: `${Math.min(100, volatility)}%` }} />
+              </div>
+              <p className="stat-sub">Volatility {fmt(volatility, 1)}%</p>
+            </div>
           </section>
 
           {/* ── market board (live) ── */}
