@@ -257,7 +257,7 @@ export default function DashboardOverview() {
         </div>
       )}
 
-      <div className="v2-grid">
+      
         {/* ══════════ MAIN COLUMN ══════════ */}
         <div className="v2-main">
 
