@@ -338,11 +338,15 @@ export default function DashboardOverview() {
               )}
             </div>
 
-            <div className="hero-actions">
-              <Link to="/dashboard/deposit" className="act-primary">＋ Deposit</Link>
-              <Link to="/dashboard/withdraw" className="act-ghost">Withdraw</Link>
-              <Link to="/dashboard/history" className="act-ghost">History</Link>
-              <Link to="/dashboard/trade" className="act-link">Open trade →</Link>
+            <div className="v2-side">
+
+          {/* quick actions */}
+          <section className="vcard">
+            <div className="qa-grid">
+              <Link className="qa-tile" to="/dashboard/deposit"><span className="qa-ico">＋</span>Deposit</Link>
+              <Link className="qa-tile" to="/dashboard/withdraw"><span className="qa-ico">↑</span>Withdraw</Link>
+              <Link className="qa-tile" to="/dashboard/trade"><span className="qa-ico">⇄</span>Trade</Link>
+              <Link className="qa-tile" to="/dashboard/history"><span className="qa-ico">☰</span>History</Link>
             </div>
           </section>
 
@@ -432,18 +436,8 @@ export default function DashboardOverview() {
           </section>
         </div>
 
-        {/* ══════════ SIDE COLUMN ══════════ */}
-        <div className="v2-side">
-
-          {/* quick actions */}
-          <section className="vcard">
-            <div className="qa-grid">
-              <Link className="qa-tile" to="/dashboard/deposit"><span className="qa-ico">＋</span>Deposit</Link>
-              <Link className="qa-tile" to="/dashboard/withdraw"><span className="qa-ico">↑</span>Withdraw</Link>
-              <Link className="qa-tile" to="/dashboard/trade"><span className="qa-ico">⇄</span>Trade</Link>
-              <Link className="qa-tile" to="/dashboard/history"><span className="qa-ico">☰</span>History</Link>
-            </div>
-          </section>
+        
+        
 
           {/* activity timeline */}
           <section className="vcard">
