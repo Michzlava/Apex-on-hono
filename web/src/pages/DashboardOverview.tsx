@@ -19,16 +19,6 @@ type Market = {
   changePercent: number;
 };
 
-type DepositMethod = {
-  id: string;
-  label: string;
-  icon: string;
-  logoUrl?: string | null;
-  address: string;
-  network?: string;
-  note?: string;
-};
-
 type DashboardData = {
   user: {
     id: string;
@@ -41,21 +31,11 @@ type DashboardData = {
     volatility: number;
     riskLabel: string;
     kycStatus: string;
-    fearGreedIndex?: number;
   };
   transactions: Transaction[];
   positions: { open: number; profit: number; loss: number };
   notifications: { id: string; message: string; read: boolean }[];
   activityLogs: { id: string; description: string }[];
-};
-
-type NewsItem = {
-  headline: string;
-  summary: string;
-  source: string;
-  time: string;
-  tag: string;
-  url: string;
 };
 
 type Period = '1D' | '7D' | '1M' | '1Y';
@@ -70,6 +50,14 @@ const PERIOD_CFG: Record<Period, { pts: number; vol: number }> = {
   '1Y': { pts: 64, vol: 2.6 },
 };
 const CHART_W = 640, CHART_H = 176, PAD_T = 14, PAD_B = 16;
+
+/* used only if /api/market returns nothing, so the board still boots live */
+const LIVE_CATALOG: Record<string, { name: string; logoUrl: string }> = {
+  BTC: { name: 'Bitcoin',  logoUrl: 'https://assets.coingecko.com/coins/images/1/small/bitcoin.png' },
+  ETH: { name: 'Ethereum', logoUrl: 'https://assets.coingecko.com/coins/images/279/small/ethereum.png' },
+  SOL: { name: 'Solana',   logoUrl: 'https://assets.coingecko.com/coins/images/4128/small/solana.png' },
+  BNB: { name: 'BNB',      logoUrl: 'https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png' },
+};
 
 function fmt(n: number | null | undefined, d = 2) {
   return (n ?? 0).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -92,7 +80,6 @@ function smoothPath(pts: { x: number; y: number }[]) {
   return d;
 }
 
-/* ── deterministic mini sparkline for market rows ─────────────────── */
 function MiniSpark({ positive, seed }: { positive: boolean; seed: number }) {
   const points = useMemo(() => {
     let s = (seed % 997) + 11;
@@ -115,110 +102,20 @@ function MiniSpark({ positive, seed }: { positive: boolean; seed: number }) {
   );
 }
 
-/* ── Fear & Greed gauge ───────────────────────────────────────────── */
-function FearGreedGauge({ value }: { value: number }) {
-  const clamped = Math.max(0, Math.min(100, value));
-
-  const getZone = (v: number) => {
-    if (v <= 24) return { label: 'Extreme Bear', color: 'var(--neg)' };
-    if (v <= 44) return { label: 'Fear',         color: '#ff8a5c' };
-    if (v <= 55) return { label: 'Neutral',      color: 'var(--gold)' };
-    if (v <= 74) return { label: 'Positive',     color: '#a3e635' };
-    return             { label: 'Very Positive', color: 'var(--pos)' };
-  };
-  const zone = getZone(clamped);
-
-  const W = 150, H = 88, cx = W / 2, cy = 74, r = 58;
-
-  const segments = [
-    { from: 0,  to: 25,  color: '#ff5c74' },
-    { from: 25, to: 45,  color: '#ff8a5c' },
-    { from: 45, to: 55,  color: '#f2b63c' },
-    { from: 55, to: 75,  color: '#a3e635' },
-    { from: 75, to: 100, color: '#2fd980' },
-  ];
-
-  const polarToCart = (angleDeg: number, radius: number) => {
-    const rad = (angleDeg * Math.PI) / 180;
-    return {
-      x: cx + radius * Math.cos(Math.PI - rad),
-      y: cy - radius * Math.sin(Math.PI - rad),
-    };
-  };
-
-  const arcPath = (fromPct: number, toPct: number, rOuter: number, rInner: number) => {
-    const a1 = (fromPct / 100) * 180;
-    const a2 = (toPct / 100) * 180;
-    const p1 = polarToCart(a1, rOuter);
-    const p2 = polarToCart(a2, rOuter);
-    const p3 = polarToCart(a2, rInner);
-    const p4 = polarToCart(a1, rInner);
-    const large = a2 - a1 > 180 ? 1 : 0;
-    return `M ${p1.x} ${p1.y} A ${rOuter} ${rOuter} 0 ${large} 1 ${p2.x} ${p2.y} L ${p3.x} ${p3.y} A ${rInner} ${rInner} 0 ${large} 0 ${p4.x} ${p4.y} Z`;
-  };
-
-  return (
-    <div className="fg-gauge">
-      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-        {segments.map((seg, i) => (
-          <path key={i} d={arcPath(seg.from + 0.8, seg.to - 0.8, r, r - 12)} fill={seg.color} opacity="0.9" />
-        ))}
-        <g style={{
-          transformOrigin: `${cx}px ${cy}px`,
-          transform: `rotate(${(clamped / 100) * 180 - 90}deg)`,
-          transition: 'transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)',
-        }}>
-          <line x1={cx} y1={cy} x2={cx} y2={cy - (r - 10)}
-            stroke="var(--tx1)" strokeWidth="2" strokeLinecap="round" />
-        </g>
-        <circle cx={cx} cy={cy} r="4.5" fill="var(--tx1)" />
-        <text x={cx} y={cy - 18} textAnchor="middle" fill={zone.color}
-          style={{ fontFamily: 'var(--mono)', fontSize: '14px', fontWeight: 700 }}>
-          {clamped}
-        </text>
-      </svg>
-      <span className="fg-zone" style={{ color: zone.color }}>{zone.label}</span>
-    </div>
-  );
-}
-
-/* ── deposit method pill ──────────────────────────────────────────── */
-function MethodPill({ m, active, onClick }: { m: DepositMethod; active: boolean; onClick: () => void }) {
-  const [imgFailed, setImgFailed] = useState(false);
-  return (
-    <button onClick={onClick} className={`method-pill ${active ? 'active' : ''}`}>
-      {m.logoUrl && !imgFailed ? (
-        <img src={m.logoUrl} alt={m.label} className="pill-logo" onError={() => setImgFailed(true)} />
-      ) : (
-        <span>{m.icon}</span>
-      )}
-      {m.label}
-    </button>
-  );
-}
-
-/* ══════════════════════════════════════════════════════════════════ */
 export default function DashboardOverview() {
   const navigate = useNavigate();
-  const [time, setTime] = useState('');
-  const [sheet, setSheet] = useState<'deposit' | null>(null);
-  const [copied, setCopied] = useState(false);
-  const [method, setMethod] = useState('');
-  const [depositMethods, setDepositMethods] = useState<DepositMethod[]>([]);
-  const [methodsLoading, setMethodsLoading] = useState(false);
   const [data, setData] = useState<DashboardData | null>(null);
   const [markets, setMarkets] = useState<Market[]>([]);
   const [loading, setLoading] = useState(true);
-  const [news, setNews] = useState<NewsItem[]>([]);
-  const [expandedNewsIdx, setExpandedNewsIdx] = useState<number | null>(null);
-  const [newsLoading, setNewsLoading] = useState(false);
   const [period, setPeriod] = useState<Period>('7D');
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const [mktTab, setMktTab] = useState<MktTab>('watch');
   const [flash, setFlash] = useState<Record<string, 'up' | 'dn'>>({});
+  const [feed, setFeed] = useState<'live' | 'sync'>('sync');
   const prevPrices = useRef<Record<string, number>>({});
+  const wsOpen = useRef(false);
 
-  /* ── data fetching (unchanged endpoints) ── */
+  /* ── user dashboard (unchanged endpoint) ── */
   const fetchDashboard = useCallback(async () => {
     try {
       const res = await fetch('/api/user/dashboard', { credentials: 'include' });
@@ -226,6 +123,7 @@ export default function DashboardOverview() {
     } finally { setLoading(false); }
   }, []);
 
+  /* ── asset list only; live prices come from the WebSocket below ── */
   const fetchMarkets = useCallback(async () => {
     try {
       const res = await fetch('/api/market');
@@ -233,34 +131,88 @@ export default function DashboardOverview() {
     } catch {}
   }, []);
 
-  const fetchNews = useCallback(async () => {
-    setNewsLoading(true);
-    try {
-      const res = await fetch('/api/news');
-      if (!res.ok) throw new Error('news fetch failed');
-      const d = await res.json();
-      setNews(d.news ?? []);
-    } catch {
-      setNews([]);
-    } finally { setNewsLoading(false); }
-  }, []);
-
   useEffect(() => {
     fetchDashboard();
     fetchMarkets();
-    fetchNews();
-    const id = setInterval(fetchMarkets, 60_000);
-    return () => clearInterval(id);
-  }, [fetchDashboard, fetchMarkets, fetchNews]);
+  }, [fetchDashboard, fetchMarkets]);
 
+  /* ── live prices: Binance WS primary, REST polling fallback ── */
   useEffect(() => {
-    const tick = () => setTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
+    const pairs = CRYPTO_SYMS.map(s => `${s}USDT`);
+    const streams = pairs.map(p => `${p.toLowerCase()}@miniTicker`).join('/');
+    let disposed = false;
+    let ws: WebSocket | null = null;
+    let retryTimer: number | undefined;
+
+    const applyTick = (sym: string, price: number, chg: number) => {
+      if (!Number.isFinite(price)) return;
+      setMarkets(prev => {
+        const i = prev.findIndex(m => m.symbol === sym);
+        if (i >= 0) {
+          const next = [...prev];
+          next[i] = { ...next[i], price, changePercent: chg };
+          return next;
+        }
+        const cat = LIVE_CATALOG[sym];
+        return [...prev, {
+          symbol: sym,
+          name: cat?.name ?? sym,
+          logoUrl: cat?.logoUrl ?? '',
+          price,
+          changePercent: chg,
+        }];
+      });
+    };
+
+    const restFallback = async () => {
+      try {
+        const res = await fetch(
+          `https://api.binance.com/api/v3/ticker/24hr?symbols=${encodeURIComponent(JSON.stringify(pairs))}`
+        );
+        if (!res.ok) return;
+        const list = await res.json();
+        for (const t of list) {
+          applyTick(String(t.symbol).replace('USDT', ''), parseFloat(t.lastPrice), parseFloat(t.priceChangePercent));
+        }
+      } catch {}
+    };
+
+    const connect = () => {
+      if (disposed) return;
+      try {
+        ws = new WebSocket(`wss://stream.binance.com:9443/stream?streams=${streams}`);
+      } catch { restFallback(); return; }
+      ws.onopen = () => { if (!disposed) { wsOpen.current = true; setFeed('live'); } };
+      ws.onmessage = ev => {
+        try {
+          const d = JSON.parse(ev.data)?.data;
+          if (!d?.s) return;
+          applyTick(String(d.s).replace('USDT', ''), parseFloat(d.c), parseFloat(d.P));
+        } catch {}
+      };
+      ws.onclose = () => {
+        wsOpen.current = false;
+        if (disposed) return;
+        setFeed('sync');
+        restFallback();
+        retryTimer = window.setTimeout(connect, 5000);
+      };
+      ws.onerror = () => { ws?.close(); };
+    };
+
+    connect();
+    const restTimer = window.setInterval(() => { if (!wsOpen.current) restFallback(); }, 15000);
+
+    return () => {
+      disposed = true;
+      wsOpen.current = false;
+      clearTimeout(retryTimer);
+      clearInterval(restTimer);
+      ws?.close();
+    };
   }, []);
 
-  /* ── price flash on market updates ── */
+  /* ── price flash on ticks ── */
   useEffect(() => {
     const next: Record<string, 'up' | 'dn'> = {};
     for (const m of markets) {
@@ -277,34 +229,18 @@ export default function DashboardOverview() {
 
   /* ── derived data ── */
   const balance       = data?.user.portfolioBalance ?? 0;
-  const firstName     = data?.user.firstName ?? '';
-  const userId        = data?.user.id?.slice(-6).toUpperCase() ?? '------';
-  const kycStatus     = data?.user.kycStatus ?? 'PENDING';
-  const kycOk         = /verif|approv|complete/i.test(kycStatus);
   const openPositions = data?.positions.open ?? 0;
   const profitPos     = data?.positions.profit ?? 0;
   const lossPos       = data?.positions.loss ?? 0;
   const activityLogs  = data?.activityLogs ?? [];
+  const transactions  = data?.transactions ?? [];
   const profit        = data?.user.realisedPnl ?? 0;
   const changePercent = data?.user.portfolioChangePercent ?? 0;
   const volatility    = data?.user.volatility ?? 0;
   const riskLabel     = data?.user.riskLabel ?? '—';
   const isProfitable  = profit >= 0;
 
-  const fearGreedValue = useMemo(() => {
-    const weights: Record<string, number> = { BTC: 0.4, ETH: 0.3, SOL: 0.2, BNB: 0.1 };
-    let weightedSum = 0, totalWeight = 0;
-    for (const [sym, w] of Object.entries(weights)) {
-      const asset = markets.find(m => m.symbol === sym);
-      if (asset) { weightedSum += asset.changePercent * w; totalWeight += w; }
-    }
-    if (totalWeight === 0) return data?.user.fearGreedIndex ?? 52;
-    const avg = weightedSum / totalWeight;
-    const clamped = Math.max(-5, Math.min(5, avg));
-    return Math.round(((clamped + 5) / 10) * 100);
-  }, [markets, data?.user.fearGreedIndex]);
-
-  /* ── synthetic-but-deterministic NAV series for the chart ── */
+  /* ── NAV chart series ── */
   const series = useMemo(() => {
     if (!balance) return [] as number[];
     const cfg = PERIOD_CFG[period];
@@ -333,7 +269,7 @@ export default function DashboardOverview() {
     const pts = series.map((v, i) => ({ x: X(i), y: Y(v) }));
     const line = smoothPath(pts);
     const area = `${line} L ${CHART_W} ${CHART_H} L 0 ${CHART_H} Z`;
-    return { min, max, X, Y, pts, line, area };
+    return { min, max, X, Y, line, area };
   }, [series]);
 
   const topGainers = [...markets].filter(m => m.changePercent >= 0)
@@ -345,28 +281,6 @@ export default function DashboardOverview() {
     mktTab === 'watch'
       ? WATCH_SYMS.map(s => markets.find(m => m.symbol === s)).filter((m): m is Market => Boolean(m))
       : mktTab === 'gainers' ? topGainers : topLosers;
-
-  /* ── actions ── */
-  const openDeposit = async () => {
-    setSheet('deposit');
-    setMethodsLoading(true);
-    try {
-      const res = await fetch('/api/admin/deposit-methods', { credentials: 'include' });
-      if (res.ok) {
-        const d = await res.json();
-        setDepositMethods(d);
-        if (d.length > 0) setMethod(d[0].id);
-      }
-    } finally { setMethodsLoading(false); }
-  };
-
-  const copyAddress = (address: string) => {
-    navigator.clipboard?.writeText(address).catch(() => {});
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const closeSheet = () => { setSheet(null); setCopied(false); };
 
   const handleQuickTrade = (symbol: string, action: 'BUY' | 'SELL') => {
     const tradeSymbol = CRYPTO_SYMS.includes(symbol) ? `${symbol}USD` : symbol;
@@ -381,22 +295,8 @@ export default function DashboardOverview() {
     setHoverIdx(idx);
   };
 
-  /* ── misc render helpers ── */
-  const hour = new Date().getHours();
-  const greet = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
-  const dateStr = new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
   const [balWhole, balCents] = fmt(balance).split('.');
-  const activeMethod = depositMethods.find(m => m.id === method);
   const posTotal = profitPos + lossPos;
-
-  const tagColors: Record<string, [string, string]> = {
-    CRYPTO:      ['var(--acc-soft)', 'var(--acc)'],
-    FOREX:       ['var(--pos-soft)', 'var(--pos)'],
-    STOCKS:      ['#20293f', '#8ab4ff'],
-    MACRO:       ['var(--gold-soft)', 'var(--gold)'],
-    COMMODITIES: ['var(--neg-soft)', '#ff8a5c'],
-  };
-
   const chartColor = isProfitable ? 'var(--pos)' : 'var(--neg)';
   const hi = hoverIdx !== null && series.length ? hoverIdx : null;
 
@@ -432,27 +332,6 @@ export default function DashboardOverview() {
           </div>
         </div>
       )}
-
-      {/* ══ header ══ */}
-      <header className="v2-header">
-        <div>
-          <p className="v2-eyebrow"><span className="v2-eyebrow-pip" />Apex·Mkts — Trading Desk</p>
-          <h1 className="v2-greet">{greet}, <span>{firstName || 'Trader'}</span></h1>
-          <div className="v2-meta-row">
-            <span className="v2-idchip">UID {userId}</span>
-            <span className={`v2-kyc ${kycOk ? 'ok' : 'pending'}`}>
-              <span className="v2-kyc-dot" />KYC {kycStatus.toUpperCase()}
-            </span>
-          </div>
-        </div>
-        <div className="v2-hdr-right">
-          <div className="v2-live"><span className="v2-live-dot" />MARKET LIVE</div>
-          <div className="v2-clockbox">
-            <span className="v2-clock">{time}</span>
-            <span className="v2-date">{dateStr}</span>
-          </div>
-        </div>
-      </header>
 
       <div className="v2-grid">
         {/* ══════════ MAIN COLUMN ══════════ */}
@@ -536,14 +415,14 @@ export default function DashboardOverview() {
             </div>
 
             <div className="hero-actions">
-              <button className="act-primary" onClick={openDeposit}>＋ Deposit</button>
+              <Link to="/dashboard/deposit" className="act-primary">＋ Deposit</Link>
               <Link to="/dashboard/withdraw" className="act-ghost">Withdraw</Link>
               <Link to="/dashboard/history" className="act-ghost">History</Link>
               <Link to="/dashboard/trade" className="act-link">Open trade →</Link>
             </div>
           </section>
 
-          {/* ── stat strip ── */}
+          {/* ── stat strip (3 cells) ── */}
           <section className="vcard stat-strip">
             <div className="stat-cell">
               <p className="stat-lbl"><span className="pip pip-acc" />Realised P&amp;L</p>
@@ -569,16 +448,15 @@ export default function DashboardOverview() {
               </div>
               <p className="stat-sub">Volatility {fmt(volatility, 1)}%</p>
             </div>
-            <div className="stat-cell stat-cell-fg">
-              <p className="stat-lbl stat-lbl-c"><span className="pip pip-neg" />Sentiment</p>
-              <FearGreedGauge value={fearGreedValue} />
-            </div>
           </section>
 
-          {/* ── markets board ── */}
+          {/* ── market board (live) ── */}
           <section className="vcard mkt-card">
             <div className="mkt-head">
               <p className="section-title"><span className="pip pip-acc" />Market Board</p>
+              <span className={`mkt-live ${feed === 'live' ? 'on' : 'off'}`}>
+                <span className="dot" />{feed === 'live' ? 'LIVE FEED' : 'SYNCING'}
+              </span>
               <div className="mkt-tabs">
                 {(['watch', 'gainers', 'losers'] as MktTab[]).map(t => (
                   <button key={t} className={`mkt-tab ${mktTab === t ? 'on' : ''}`} onClick={() => setMktTab(t)}>
@@ -591,7 +469,7 @@ export default function DashboardOverview() {
             <div className="mkt-rows">
               {rowsByTab.length === 0 ? (
                 <p className="mkt-empty">
-                  {markets.length === 0 ? 'No market data available'
+                  {markets.length === 0 ? 'Connecting to market feed…'
                     : mktTab === 'gainers' ? 'Everything is red right now'
                     : 'Everything is green right now'}
                 </p>
@@ -636,18 +514,10 @@ export default function DashboardOverview() {
           {/* quick actions */}
           <section className="vcard">
             <div className="qa-grid">
-              <button className="qa-tile" onClick={openDeposit}>
-                <span className="qa-ico">＋</span>Deposit
-              </button>
-              <Link className="qa-tile" to="/dashboard/withdraw">
-                <span className="qa-ico">↑</span>Withdraw
-              </Link>
-              <Link className="qa-tile" to="/dashboard/trade">
-                <span className="qa-ico">⇄</span>Trade
-              </Link>
-              <Link className="qa-tile" to="/dashboard/history">
-                <span className="qa-ico">☰</span>History
-              </Link>
+              <Link className="qa-tile" to="/dashboard/deposit"><span className="qa-ico">＋</span>Deposit</Link>
+              <Link className="qa-tile" to="/dashboard/withdraw"><span className="qa-ico">↑</span>Withdraw</Link>
+              <Link className="qa-tile" to="/dashboard/trade"><span className="qa-ico">⇄</span>Trade</Link>
+              <Link className="qa-tile" to="/dashboard/history"><span className="qa-ico">☰</span>History</Link>
             </div>
           </section>
 
@@ -666,126 +536,43 @@ export default function DashboardOverview() {
             </div>
           </section>
 
-          {/* news */}
-          <section className="vcard news-card">
+          {/* transactions (replaces news) */}
+          <section className="vcard">
             <div className="side-head">
-              <p className="section-title"><span className="pip pip-gold" />Global Finance News</p>
+              <p className="section-title"><span className="pip pip-gold" />Transactions</p>
+              <Link to="/dashboard/history" className="section-view-all">All →</Link>
             </div>
-            <div className="news-wrap">
-              {newsLoading ? (
-                <div className="news-loading">
-                  <div className="v2-spinner small" />
-                  <p>Fetching latest news…</p>
-                </div>
-              ) : news.length === 0 ? (
-                <p className="news-none">No news available.</p>
-              ) : (
-                <>
-                  {news.map((item, i) => {
-                    const [tagBg, tagCol] = tagColors[item.tag] ?? ['var(--bg3)', 'var(--tx2)'];
-                    const isExpanded = expandedNewsIdx === i;
-                    return (
-                      <div key={i} className="news-entry">
-                        <div className="news-item" onClick={() => setExpandedNewsIdx(isExpanded ? null : i)}>
-                          <span className="news-tag" style={{ background: tagBg, color: tagCol }}>{item.tag}</span>
-                          <div className="news-body">
-                            <p className="news-headline">{item.headline}</p>
-                            <p className="news-meta">{item.source} · {item.time}</p>
-                          </div>
-                          <span className={`news-chev ${isExpanded ? 'open' : ''}`}>▾</span>
-                        </div>
-                        {isExpanded && (
-                          <div className="news-expand">
-                            {item.summary
-                              ? <p className="news-summary">{item.summary}</p>
-                              : <p className="news-summary empty">No summary available.</p>}
-                            {item.url && (
-                              <a href={item.url} target="_blank" rel="noopener noreferrer" className="news-readmore">
-                                Read full article →
-                              </a>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                  <div className="news-pulse">
-                    <span className="news-pulse-dot" />
-                    <span>Live · CryptoCompare &amp; BBC Business</span>
+            <div className="tx-list">
+              {transactions.length === 0 ? (
+                <p className="act-empty" style={{ padding: '12px 17px' }}>No transactions yet</p>
+              ) : transactions.slice(0, 6).map(t => {
+                const when = (() => {
+                  const d = new Date(t.createdAt);
+                  if (isNaN(d.getTime())) return '';
+                  return `${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+                })();
+                return (
+                  <div className="tx-item" key={t.id}>
+                    <div className={`tx-ico ${t.type.toLowerCase()}`}>
+                      {t.type === 'Deposit' ? '↓' : t.type === 'Withdrawal' ? '↑' : '⇄'}
+                    </div>
+                    <div className="tx-meta">
+                      <p className="tx-title">{t.type} · {t.asset}</p>
+                      <p className="tx-date">{when}</p>
+                    </div>
+                    <div className="tx-right">
+                      <p className={`tx-amt ${t.type === 'Deposit' ? 'pos' : t.type === 'Withdrawal' ? 'neg' : ''}`}>
+                        {t.type === 'Withdrawal' ? '-' : t.type === 'Deposit' ? '+' : ''}{fmt(t.amount)}
+                      </p>
+                      <span className={`tx-status ${t.status.toLowerCase()}`}>{t.status}</span>
+                    </div>
                   </div>
-                </>
-              )}
+                );
+              })}
             </div>
           </section>
         </div>
       </div>
-
-      {/* ══ deposit sheet ══ */}
-      {sheet === 'deposit' && (
-        <>
-          <div className="sheet-overlay" onClick={closeSheet} />
-          <div className="sheet">
-            <div className="sheet-handle" />
-            <div className="sheet-head">
-              <div>
-                <p className="sheet-title">Quick Deposit</p>
-                <p className="sheet-sub">Copy an address and make an instant deposit</p>
-              </div>
-              <button className="sheet-close" onClick={closeSheet}>✕</button>
-            </div>
-
-            {methodsLoading ? (
-              <div className="sheet-loading">
-                <div className="v2-spinner" />
-                <p>Loading methods…</p>
-              </div>
-            ) : depositMethods.length === 0 ? (
-              <div className="sheet-empty">
-                <p className="sheet-empty-ico">🔧</p>
-                <p className="sheet-empty-title">No deposit methods yet</p>
-                <p className="sheet-empty-sub">Contact support or check back later.</p>
-              </div>
-            ) : (
-              <>
-                <div className="method-pills-row">
-                  {depositMethods.map(m => (
-                    <MethodPill key={m.id} m={m} active={method === m.id} onClick={() => setMethod(m.id)} />
-                  ))}
-                </div>
-
-                {activeMethod && (
-                  <div className="addr-box">
-                    <div className="addr-method-header">
-                      {activeMethod.logoUrl && (
-                        <img src={activeMethod.logoUrl} alt={activeMethod.label} className="addr-method-logo"
-                          onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                      )}
-                      <div>
-                        <p className="addr-method-name">{activeMethod.label}</p>
-                        {activeMethod.network && <p className="addr-network">Network · {activeMethod.network}</p>}
-                      </div>
-                    </div>
-                    <p className="addr-text">{activeMethod.address}</p>
-                    <button onClick={() => copyAddress(activeMethod.address)}
-                      className={`copy-btn ${copied ? 'done' : 'idle'}`}>
-                      {copied ? '✓ Copied to clipboard' : '⧉ Copy Address'}
-                    </button>
-                  </div>
-                )}
-                {activeMethod?.note && (
-                  <div className="note-box">
-                    <span>⚠️</span>
-                    <p>{activeMethod.note}</p>
-                  </div>
-                )}
-              </>
-            )}
-            <Link to="/dashboard/deposit" className="sheet-full-link" onClick={closeSheet}>
-              Continue to Deposit →
-            </Link>
-          </div>
-        </>
-      )}
     </div>
   );
 }
