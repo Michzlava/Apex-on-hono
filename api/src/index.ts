@@ -9,6 +9,7 @@ import depositRoutes from './routes/deposits'
 import tradeRoutes from './routes/trade'
 import priceRoutes from './routes/price'
 import assetsRoutes from './routes/assets'
+import withdrawalRoutes from './routes/withdrawals'
 import adminUsersRoutes from './routes/admin-users'
 import { authMiddleware } from './middleware/auth'
 import { createDb } from './db/client'
@@ -52,12 +53,15 @@ app.route('/api/admin/users', adminUsersRoutes)
 app.use('/api/user/*', authMiddleware)
 app.route('/api/user/dashboard', dashboardRoutes)
 app.route('/api/user/deposits', depositRoutes)
+app.route('/api/user/withdrawals', withdrawalRoutes) 
 
 app.use('/api/assets', authMiddleware)
 app.route('/api/assets', assetsRoutes)
 
 app.use('/api/transaction/*', authMiddleware)
 app.route('/api/transaction/trade', tradeRoutes)
+
+
 
 app.get('*', (c) => {
   return (c.env as any).ASSETS.fetch(c.req.raw)
