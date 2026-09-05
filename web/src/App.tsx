@@ -8,7 +8,7 @@ import DashboardOverview from './pages/DashboardOverview'
 import DepositPage from './pages/DepositPage'
 import TradePage from './pages/TradePage'
 import AssetsPage from './pages/AssetsPage'
-import AssetsPage from './pages/MarketsPage'
+import MarketsPage from './pages/MarketsPage'
 import AdminLoginPage from './pages/AdminLoginPage'
 
 // Admin pages — all in ./pages now
