@@ -250,7 +250,7 @@ export default function DashboardOverview() {
 
   const [balWhole, balCents] = fmt(balance).split('.');
   const posTotal = profitPos + lossPos;
-  const chartColor = chart?.flat ? 'var(--tx3)' : isProfitable ? 'var(--pos)' : 'var(--neg)';
+  const chartColor = isProfitable ? 'var(--pos)' : 'var(--neg)';
   const hi = hoverIdx !== null && series.length ? hoverIdx : null;
 
   if (loading) {
@@ -332,10 +332,9 @@ export default function DashboardOverview() {
                         y2={PAD_T + f * (CHART_H - PAD_T - PAD_B)}
                         stroke="var(--line)" strokeDasharray="3 6" strokeWidth="1" />
                     ))}
-                    {!chart.flat && <path d={chart.area} fill="url(#nav-fill)" />}
+                    <path d={chart.area} fill={chart.flat ? chartColor : 'url(#nav-fill)'} fillOpacity={chart.flat ? 0.18 : 1} />
                     <path d={chart.line} fill="none" stroke={chartColor} strokeWidth="2"
-                      strokeLinecap="round" vectorEffect="non-scaling-stroke"
-                      strokeDasharray={chart.flat ? '5 7' : undefined} />
+                      strokeLinecap="round" vectorEffect="non-scaling-stroke" />
                     {hi !== null && !chart.flat && (
                       <line x1={chart.X(hi)} x2={chart.X(hi)} y1={PAD_T - 6} y2={CHART_H - 4}
                         stroke="var(--line2)" strokeWidth="1" strokeDasharray="2 3" />
