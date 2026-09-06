@@ -13,6 +13,7 @@ import WithdrawPage from './pages/WithdrawPage'
 import ProfilePage from './pages/ProfilePage'
 import SettingsPage from './pages/SettingsPage'
 import KycPage from './pages/KycPage'
+import SupportPage from './pages/SupportPage'
 import AdminLoginPage from './pages/AdminLoginPage'
 
 // Admin pages — all in ./pages now
@@ -92,6 +93,9 @@ function AppRoutes() {
           <Route path="profile" element={<ProfilePage />} />          
           <Route path="kyc" element={<KycPage />} />
           <Route path="settings" element={<SettingsPage />} />
+          
+<Route path="support" element={<SupportPage />} />
+
 
           <Route path="*" element={<NotFound />} />
         </Route>
