@@ -8,6 +8,7 @@ import depositMethodsRoutes from './routes/deposit-methods'
 import depositRoutes from './routes/deposits'
 import tradeRoutes from './routes/trade'
 import priceRoutes from './routes/price'
+import bonusRoutes from './routes/bonus'
 import assetsRoutes from './routes/assets'
 import withdrawalRoutes from './routes/withdrawals'
 import adminUsersRoutes from './routes/admin-users'
@@ -61,6 +62,8 @@ app.route('/api/assets', assetsRoutes)
 app.use('/api/transaction/*', authMiddleware)
 app.route('/api/transaction/trade', tradeRoutes)
 
+
+app.route('/api/user/bonus', bonusRoutes)
 
 
 app.get('*', (c) => {
