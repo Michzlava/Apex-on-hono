@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { users, activityLogs } from '../db/schema'
 import { eq } from 'drizzle-orm'
+import bcrypt from 'bcryptjs'
 
 const app = new Hono()
 
@@ -48,6 +49,8 @@ app.put('/', async (c) => {
 })
 
 /* ── POST /api/user/settings/password ── */
+
+
 app.post('/password', async (c) => {
   const userId = c.get('userId')
   const db = c.get('db')
@@ -59,16 +62,11 @@ app.post('/password', async (c) => {
   const [user] = await db.select({ password: users.password }).from(users).where(eq(users.id, userId))
   if (!user) return c.json({ error: 'User not found' }, 404)
 
-  const stored = user.password ?? ''
-  const sha = await sha256hex(String(currentPassword))
-  const matchesSha  = !!stored && stored === sha
-  const matchesRaw  = !!stored && stored === String(currentPassword)
-  if (!matchesSha && !matchesRaw) return c.json({ error: 'Current password is incorrect' }, 400)
+  const valid = await bcrypt.compare(String(currentPassword), user.password ?? '')
+  if (!valid) return c.json({ error: 'Current password is incorrect' }, 400)
 
-  // Preserve whatever storage format already exists so login keeps working
-  const next = matchesSha ? await sha256hex(String(newPassword)) : String(newPassword)
-
-  await db.update(users).set({ password: next, updatedAt: new Date() }).where(eq(users.id, userId))
+  const hashedNew = await bcrypt.hash(String(newPassword), 10)
+  await db.update(users).set({ password: hashedNew, updatedAt: new Date() }).where(eq(users.id, userId))
   await db.insert(activityLogs).values({
     id: crypto.randomUUID(),
     userId,
