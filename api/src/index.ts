@@ -16,6 +16,8 @@ import kycRoutes from './routes/kyc'
 import supportRoutes from './routes/support'
 import adminUsersRoutes from './routes/admin-users'
 import adminSupportRoutes from './routes/admin-support'
+import adminDepositsRoutes from './routes/admin-deposits'
+import adminWithdrawalsRoutes from './routes/admin-withdrawals'
 import { authMiddleware } from './middleware/auth'
 import { createDb } from './db/client'
 
@@ -55,6 +57,8 @@ app.use('/api/admin/*', authMiddleware)
 app.route('/api/admin/deposit-methods', depositMethodsRoutes)
 app.route('/api/admin/users', adminUsersRoutes)
 
+app.route('/api/admin/deposits', adminDepositsRoutes)         // ← new
+app.route('/api/admin/withdrawals', adminWithdrawalsRoutes)   // ← new
 app.route('/api/admin/support', adminSupportRoutes) 
 
 // ── User (protected) ──
