@@ -42,6 +42,11 @@ export const users = pgTable("User", {
   portfolioChangePercent: decimal("portfolioChangePercent", { precision: 19, scale: 8 }).notNull().default("0"),
   realisedPnl:            decimal("realisedPnl", { precision: 19, scale: 8 }).notNull().default("0"),
   volatility:             decimal("volatility", { precision: 19, scale: 8 }).notNull().default("0"),
+  
+  signupBonusClaimed: boolean("signupBonusClaimed").notNull().default(false),
+  signupBonusAmount: decimal("signupBonusAmount", { precision: 19, scale: 8 }).notNull().default("0"),
+  signupBonusClaimedAt: timestamp("signupBonusClaimedAt"),
+  
   riskLabel:              riskLabelEnum("riskLabel").notNull().default("CONSERVATIVE"),
   kycStatus:              kycStatusEnum("kycStatus").notNull().default("NONE"),
   createdAt:              timestamp("createdAt").notNull().defaultNow(),
