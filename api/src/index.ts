@@ -43,36 +43,37 @@ app.get('/api/health', (c) => {
   })
 })
 
-// Public API routes
+// ── Public API routes ──
 app.route('/api/auth', authRoutes)
 app.route('/api/market', marketRoutes)
 app.route('/api/news', newsRoutes)
 app.route('/api/price', priceRoutes)
 
-// Protected API routes
+// ── Admin (protected) ──
 app.use('/api/admin/*', authMiddleware)
 app.route('/api/admin/deposit-methods', depositMethodsRoutes)
 app.route('/api/admin/users', adminUsersRoutes)
 
+// ── User (protected) ──
 app.use('/api/user/*', authMiddleware)
 app.route('/api/user/dashboard', dashboardRoutes)
 app.route('/api/user/deposits', depositRoutes)
-app.route('/api/user/withdrawals', withdrawalRoutes) 
+app.route('/api/user/withdrawals', withdrawalRoutes)
 app.route('/api/user/settings', settingsRoutes)
+app.route('/api/user/kyc', kycRoutes)
+app.route('/api/user/bonus', bonusRoutes)
+
+// ── Support (own namespace → needs its own auth line) ──
+app.use('/api/support/*', authMiddleware)
 app.route('/api/support', supportRoutes)
 
-app.route('/api/user/kyc', kycRoutes)
-
+// ── Assets & trading (protected) ──
 app.use('/api/assets', authMiddleware)
 app.route('/api/assets', assetsRoutes)
-
 app.use('/api/transaction/*', authMiddleware)
 app.route('/api/transaction/trade', tradeRoutes)
 
-
-app.route('/api/user/bonus', bonusRoutes)
-
-
+// ── Static frontend ──
 app.get('*', (c) => {
   return (c.env as any).ASSETS.fetch(c.req.raw)
 })
