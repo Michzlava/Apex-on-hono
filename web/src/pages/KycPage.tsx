@@ -16,17 +16,19 @@ const CLOUD = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME as string;
 const PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET as string;
 
 async function uploadToCloudinary(file: File): Promise<string> {
-  const form = new FormData();
-  form.append('file', file);
-  form.append('upload_preset', PRESET);
-  form.append('folder', 'apex-kyc');
-  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD}/image/upload`, {
-    method: 'POST',
-    body: form,
-  });
-  if (!res.ok) throw new Error('Upload failed');
-  const d = await res.json();
-  return d.secure_url;
+     const form = new FormData();
+     form.append('file', file);
+     const res = await fetch('/api/user/kyc/upload', {
+       method: 'POST',
+       credentials: 'include',
+       body: form,
+     });
+     if (!res.ok) {
+       const d = await res.json().catch(() => ({}));
+       throw new Error(d.error ?? 'Upload failed');
+     }
+     const d = await res.json();
+     return d.url;
 }
 
 function fmtDate(iso: string) {
