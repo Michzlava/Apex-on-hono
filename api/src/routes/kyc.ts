@@ -15,7 +15,45 @@ app.get('/', async (c) => {
   return c.json({ submission: sub ?? null, kycStatus: user?.kycStatus ?? 'NONE' })
 })
 
-/* ── POST /api/user/kyc — record a submission (URLs come from Cloudinary) ── */
+/* ── POST /api/user/kyc/upload — signed Cloudinary upload via Worker ── */
+app.post('/upload', async (c) => {
+  const env = c.env as any
+  const CLOUD  = env.CLOUDINARY_CLOUD_NAME
+  const KEY    = env.CLOUDINARY_API_KEY
+  const SECRET = env.CLOUDINARY_API_SECRET
+  if (!CLOUD || !KEY || !SECRET) return c.json({ error: 'Cloudinary not configured' }, 500)
+
+  const form = await c.req.formData()
+  const file = form.get('file')
+  if (!(file instanceof File)) return c.json({ error: 'No file provided' }, 400)
+  if (file.size > 8 * 1024 * 1024) return c.json({ error: 'File too large (max 8 MB)' }, 400)
+
+  // Cloudinary signed-upload signature: SHA1(sorted params + api_secret)
+  const timestamp = Math.round(Date.now() / 1000)
+  const toSign = `folder=apex-kyc&timestamp=${timestamp}`
+  const buf = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(toSign + SECRET))
+  const signature = [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('')
+
+  const out = new FormData()
+  out.append('file', file)
+  out.append('api_key', KEY)
+  out.append('timestamp', String(timestamp))
+  out.append('signature', signature)
+  out.append('folder', 'apex-kyc')
+
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD}/image/upload`, {
+    method: 'POST',
+    body: out,
+  })
+  if (!res.ok) {
+    console.error('[kyc upload] Cloudinary error:', res.status, await res.text().catch(() => ''))
+    return c.json({ error: 'Upload failed' }, 502)
+  }
+  const data = await res.json()
+  return c.json({ url: data.secure_url })
+})
+
+/* ── POST /api/user/kyc — record a submission (URLs come from /upload) ── */
 app.post('/', async (c) => {
   const userId = c.get('userId')
   const db = c.get('db')
