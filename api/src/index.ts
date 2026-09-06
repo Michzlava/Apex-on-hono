@@ -13,6 +13,7 @@ import assetsRoutes from './routes/assets'
 import withdrawalRoutes from './routes/withdrawals'
 import settingsRoutes from './routes/settings'
 import kycRoutes from './routes/kyc'
+import supportRoutes from './routes/support'
 import adminUsersRoutes from './routes/admin-users'
 import { authMiddleware } from './middleware/auth'
 import { createDb } from './db/client'
@@ -58,6 +59,7 @@ app.route('/api/user/dashboard', dashboardRoutes)
 app.route('/api/user/deposits', depositRoutes)
 app.route('/api/user/withdrawals', withdrawalRoutes) 
 app.route('/api/user/settings', settingsRoutes)
+app.route('/api/support', supportRoutes)
 
 app.route('/api/user/kyc', kycRoutes)
 
