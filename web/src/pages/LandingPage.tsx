@@ -1,393 +1,462 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import  Logo  from '../components/Logo';
-import './landing.css';
+import './landing-page.css';
 
-/* ─── Data Generation & Fallbacks ───────────────────────────────── */
-function makeCandles(n = 58) {
-  let price = 67000;
-  return Array.from({ length: n }, () => {
-    const drift = (Math.random() - 0.47) * 700;
-    const open = price;
-    const close = price + drift;
-    const high = Math.max(open, close) + Math.random() * 260;
-    const low  = Math.min(open, close) - Math.random() * 210;
-    price = close;
-    return { open, close, high, low };
-  });
-}
-
-const TICKERS = [
-  { sym: 'BTC/USD', price: '67,420', chg: '+2.38%', up: true  },
-  { sym: 'ETH/USD', price: '3,512',  chg: '+3.01%', up: true  },
-  { sym: 'AAPL',    price: '189.42', chg: '+1.24%', up: true  },
-  { sym: 'TSLA',    price: '248.10', chg: '−0.87%', up: false },
-  { sym: 'EUR/USD', price: '1.0842', chg: '+0.12%', up: true  },
-  { sym: 'NVDA',    price: '875.40', chg: '+4.62%', up: true  },
-  { sym: 'GOLD',    price: '2,318',  chg: '−0.23%', up: false },
-  { sym: 'S&P 500', price: '5,241',  chg: '+0.56%', up: true  },
+const ASSETS = [
+  { id: 'BTC',  sym: 'Bitcoin',  tag: 'BTC / USD', color: '#f7931a', icon: 'https://assets.coincap.io/assets/icons/btc@2x.png' },
+  { id: 'ETH',  sym: 'Ethereum', tag: 'ETH / USD', color: '#627eea', icon: 'https://assets.coincap.io/assets/icons/eth@2x.png' },
+  { id: 'XAU',  sym: 'Gold',     tag: 'XAU / USD', color: '#d4af37', icon: 'https://assets.coincap.io/assets/icons/xaut@2x.png' },
+  { id: 'EUR',  sym: 'Euro',     tag: 'EUR / USD', color: '#3b82f6' },
+  { id: 'AAPL', sym: 'Apple',    tag: 'AAPL',      color: '#94a3b8' },
+  { id: 'TSLA', sym: 'Tesla',    tag: 'TSLA',      color: '#ef4444' },
 ];
 
-const MARKETS = [
-  { sym: 'BTC',     name: 'Bitcoin',       price: '67,420',   chg: '+2.38%', up: true  },
-  { sym: 'ETH',     name: 'Ethereum',      price: '3,512',    chg: '+3.01%', up: true  },
-  { sym: 'NVDA',    name: 'NVIDIA Corp',   price: '875.40',   chg: '+4.62%', up: true  },
-  { sym: 'GOLD',    name: 'Gold Spot',     price: '2,318.50', chg: '−0.23%', up: false },
-  { sym: 'EUR/USD', name: 'Euro / Dollar', price: '1.0842',   chg: '+0.12%', up: true  },
-  { sym: 'TSLA',    name: 'Tesla Inc',     price: '248.10',   chg: '−0.87%', up: false },
-];
+type Asset = { id: string; sym: string; tag: string; color: string; icon?: string; price: number; change: number };
 
-const FEATURES = [
-  { n: '01', title: 'Smart Order Routing',        desc: 'Real-time splitting across liquidity pools minimises slippage and maximises fill rates on every trade.' },
-  { n: '02', title: 'Multi-Asset Dashboard',      desc: 'Equities, crypto, FX, and commodities — one unified workspace, live updates, zero context-switching.' },
-  { n: '03', title: 'Real-time Risk Engine',      desc: 'Automatic margin alerts and drawdown controls so you stay in the game longer, with less friction.' },
-  { n: '04', title: 'Institutional-grade API',    desc: 'REST + WebSocket access for algorithmic traders. Co-location options with sub-millisecond data feeds.' },
-];
-
-/* ─── Candlestick Chart Component ───────────────────────────────── */
-function CandleChart({ candles }: { candles: { open: number; close: number; high: number; low: number }[] }) {
-  const W = 1100, H = 200;
-  const stride = Math.floor(W / candles.length);
-  const bw = Math.max(stride - 4, 4);
-  const minP = Math.min(...candles.map(c => c.low));
-  const maxP = Math.max(...candles.map(c => c.high));
-  const range = maxP - minP || 1;
-  const pad = { t: 12, b: 10 };
-  const toY = (p: number) => pad.t + ((maxP - p) / range) * (H - pad.t - pad.b);
-
+function Sparkline({ positive }: { positive: boolean }) {
+  const pts = positive
+    ? '0,20 14,14 28,17 42,9 56,12 70,4 84,7 98,0'
+    : '0,2 14,9 28,6 42,15 56,11 70,20 84,16 98,22';
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="100%" preserveAspectRatio="none">
-      <defs>
-        <linearGradient id="cfh" x1="0" x2="1" y1="0" y2="0">
-          <stop offset="0%"   stopColor="#070B14" stopOpacity="1"/>
-          <stop offset="12%"  stopColor="#070B14" stopOpacity="0"/>
-          <stop offset="88%"  stopColor="#070B14" stopOpacity="0"/>
-          <stop offset="100%" stopColor="#070B14" stopOpacity="1"/>
-        </linearGradient>
-        <linearGradient id="cfv" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%"  stopColor="#070B14" stopOpacity="0.85"/>
-          <stop offset="55%" stopColor="#070B14" stopOpacity="0"/>
-        </linearGradient>
-      </defs>
-      {candles.map((c, i) => {
-        const cx  = i * stride + stride / 2;
-        const up  = c.close >= c.open;
-        const col = up ? '#00D68A' : '#FF5252';
-        const bodyT = toY(Math.max(c.open, c.close));
-        const bodyB = toY(Math.min(c.open, c.close));
-        const bodyH = Math.max(bodyB - bodyT, 1);
-        return (
-          <g key={i} opacity="0.82">
-            <line x1={cx} y1={toY(c.high)} x2={cx} y2={toY(c.low)} stroke={col} strokeWidth="1"/>
-            <rect x={i * stride + (stride - bw) / 2} y={bodyT} width={bw} height={bodyH} fill={col}/>
-          </g>
-        );
-      })}
-      <rect x="0" y="0" width={W} height={H} fill="url(#cfh)"/>
-      <rect x="0" y="0" width={W} height={H} fill="url(#cfv)"/>
+    <svg width={100} height={24} viewBox="0 0 98 24" fill="none">
+      <polyline
+        points={pts}
+        stroke={positive ? '#34d399' : '#fb7185'}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        opacity="0.8"
+      />
     </svg>
   );
 }
 
-/* ─── Helper Formatting Utilities ───────────────────────────────── */
-const CRYPTO_SET = new Set(['BTC', 'ETH', 'SOL', 'BNB']);
-
-function fmtPrice(price: number) {
-  const decimals = price < 1 ? 4 : 2;
-  return price.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+function HeroMiniChart({ label, value, change, positive }: {
+  label: string; value: string; change: string; positive: boolean;
+}) {
+  const points = positive
+    ? 'M0,28 L21,22 L43,25 L64,14 L85,18 L107,8 L128,4'
+    : 'M0,4 L21,10 L43,7 L64,16 L85,13 L107,22 L128,26';
+  const col = positive ? '#34d399' : '#fb7185';
+  return (
+    <div className="lp-hero-mini">
+      <div className="lp-hero-mini-head">
+        <span className="lp-hero-mini-lbl">{label}</span>
+        <span className={`lp-hero-mini-chg ${positive ? 'pos' : 'neg'}`}>{change}</span>
+      </div>
+      <div className="lp-hero-mini-val">{value}</div>
+      <svg width="128" height="32" viewBox="0 0 128 32" fill="none">
+        <defs>
+          <linearGradient id={`grad-${label}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={col} stopOpacity="0.3" />
+            <stop offset="100%" stopColor={col} stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <path d={points + ' L128,32 L0,32 Z'} fill={`url(#grad-${label})`} />
+        <path d={points} stroke={col} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      </svg>
+    </div>
+  );
 }
 
-function fmtChange(pct: number) {
-  return `${pct >= 0 ? '+' : '−'}${Math.abs(pct).toFixed(2)}%`;
-}
-
-function displaySym(sym: string) {
-  return CRYPTO_SET.has(sym) ? `${sym}/USD` : sym;
-}
-
-async function fetchAssets() {
-  // In Vite dev, this hits the proxy -> Hono Worker. 
-  // In prod, it hits your API domain.
-  const res = await fetch('/api/market', { cache: 'no-store' });
-  if (!res.ok) throw new Error('market fetch failed');
-  return res.json();
-}
-
-function buildBook(mid: number) {
-  const unit = Math.max(mid * 0.00003, 0.01);
-  const level = () => ({ size: (0.25 + Math.random() * 1.1).toFixed(3), pct: Math.round(14 + Math.random() * 38) });
-  const asks = Array.from({ length: 5 }, (_, i) => ({ price: fmtPrice(mid + unit * (5 - i)), ...level() }));
-  const bids = Array.from({ length: 5 }, (_, i) => ({ price: fmtPrice(mid - unit * (i + 1)), ...level() }));
-  return { asks, bids, spread: (unit * 2).toFixed(2), mid: fmtPrice(mid) };
-}
-
-/* ─── Main Landing Page Component ────────────────────────────────── */
 export default function LandingPage() {
-  const [candles] = useState(makeCandles);
-  const [assets, setAssets] = useState<any[]>([]);
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
-    let active = true;
-    async function load() {
-      try {
-        const data = await fetchAssets();
-        if (active && Array.isArray(data) && data.length) setAssets(data);
-      } catch {
-        // Keeps fallback UI data safely intact
-      }
-    }
-    load();
-    const id = setInterval(load, 30000);
-    return () => { active = false; clearInterval(id); };
+    const fn = () => setScrolled(window.scrollY > 30);
+    window.addEventListener('scroll', fn);
+    return () => window.removeEventListener('scroll', fn);
   }, []);
 
-  const live = assets.length > 0;
-
-  const tickerData = live
-    ? assets.map(a => ({ sym: displaySym(a.symbol), price: fmtPrice(a.price), chg: fmtChange(a.changePercent), up: a.changePercent >= 0, logo: a.logoUrl }))
-    : TICKERS.map(t => ({ ...t, logo: undefined }));
-  const allTickers = [...tickerData, ...tickerData, ...tickerData];
-
-  const marketRows = live
-    ? assets.map(a => ({ sym: a.symbol, name: a.name, price: fmtPrice(a.price), chg: fmtChange(a.changePercent), up: a.changePercent >= 0, logo: a.logoUrl }))
-    : MARKETS.map(m => ({ ...m, logo: undefined }));
-
-  const btc = assets.find(a => a.symbol === 'BTC');
-  const midPrice = btc ? btc.price : 67420.50;
-  const midChange = btc ? btc.changePercent : 2.38;
-  const btcLogo = btc ? btc.logoUrl : undefined;
-  const book = useMemo(() => buildBook(midPrice), [midPrice]);
-
-  useEffect(() => {
-    const io = new IntersectionObserver(
-      entries => entries.forEach(e => {
-        if (e.isIntersecting) { e.target.classList.add('apv'); io.unobserve(e.target); }
-      }),
-      { threshold: 0.1 }
+  const fetchPrices = async () => {
+    const results = await Promise.all(
+      ASSETS.map(async (a) => {
+        try {
+          const res = await fetch(`/api/price?symbol=${a.id}`);
+          const data = await res.json();
+          return { ...a, price: data.price ?? 0, change: (Math.random() - 0.38) * 3.5 };
+        } catch {
+          return { ...a, price: 0, change: 0 };
+        }
+      })
     );
-    document.querySelectorAll('.aprx').forEach(el => io.observe(el));
-    return () => io.disconnect();
+    setAssets(results);
+  };
+
+  useEffect(() => {
+    fetchPrices();
+    const t = setInterval(fetchPrices, 51000);
+    return () => clearInterval(t);
   }, []);
+
+  const bids = [
+    { price: '104,218.50', size: '0.4821', depth: 82 },
+    { price: '104,210.00', size: '1.2034', depth: 68 },
+    { price: '104,198.75', size: '0.8812', depth: 55 },
+  ];
+  const asks = [
+    { price: '104,225.00', size: '0.5500', depth: 75 },
+    { price: '104,237.50', size: '0.9200', depth: 60 },
+    { price: '104,250.75', size: '1.4400', depth: 48 },
+  ];
 
   return (
-    <div className="ap-root">
+    <div className="lp-wrap">
+      {/* ── Nav ── */}
+      <nav className={`lp-nav ${scrolled ? 'lp-nav-solid' : ''}`}>
+        <div className="lp-nav-inner">
+          <Link to="/" className="lp-logo">
+            <div className="lp-logo-box">AP</div>
+            <span className="lp-logo-text">APEX<span>·</span>MKTS</span>
+          </Link>
 
-      {/* ── NAV ── */}
-      <nav className="ap-nav">
-        <Link to="/" className="ap-logo">
-          <Logo width={210} height={42} />
-        </Link>
-        <div className="ap-ticker-wrap">
-          <div className="ap-ticker-track">
-            {allTickers.map((t, i) => (
-              <span key={i} className="ap-ticker-item">
-                {t.logo && (
-                  <img
-                    src={t.logo}
-                    alt=""
-                    className="ap-tlogo"
-                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-                  />
-                )}
-                <span className="ap-tsym">{t.sym}</span>
-                <span className="ap-tprice">{t.price}</span>
-                <span className={t.up ? 'ap-up' : 'ap-dn'}>{t.chg}</span>
-              </span>
-            ))}
+          <div className="lp-nav-links">
+            <a href="#markets">Markets</a>
+            <a href="#features">Features</a>
+            <a href="#security">Security</a>
+          </div>
+
+          <div className="lp-nav-actions">
+            <Link to="/login" className="lp-nav-signin">Sign In</Link>
+            <Link to="/signup" className="lp-nav-cta">Get Started</Link>
           </div>
         </div>
-        <ul className="ap-nav-links">
-          <li><a href="#platform">Platform</a></li>
-          <li><a href="#markets">Markets</a></li>
-          <li><a href="#begin">Trust</a></li>
-        </ul>
-        <Link to="/signup" className="ap-nav-cta">Get Started</Link>
       </nav>
 
-      {/* ── HERO SECTION ── */}
-      <section className="ap-hero">
-        <div className="ap-hero-grid"/>
-        <div className="ap-hero-chart">
-          <CandleChart candles={candles}/>
-        </div>
-        <div className="ap-hero-inner">
-          <div className="ap-hero-left">
-            <p className="ap-eyebrow">Since 2019 · FCA &amp; CySEC Regulated</p>
-            <h1 className="ap-h1">
-              YOUR CAPITAL<br/>
-              <em>YOUR CALL</em><br/>
-              AT ALL TIMES
-            </h1>
-            <p className="ap-hero-sub ap-text-base">
-              Trade equities, crypto, FX, and derivatives from a single platform. Regulated, transparent, and made to handle whatever the market throws at you.
-            </p>
-            <div className="ap-hero-ctas">
-              <Link to="/signup" className="ap-btn-primary">Start Trading →</Link>
-              <Link to="/login" className="ap-btn-ghost">Log In</Link>
-            </div>
-          </div>
+      <main>
+        {/* ── Hero ── */}
+        <section className="lp-hero">
+          <div className="lp-hero-glow lp-hero-glow-1" />
+          <div className="lp-hero-glow lp-hero-glow-2" />
 
-          <div className="ap-hero-right">
-            <div className="ap-book">
-              <div className="ap-book-head">
-                <div>
-                  <div className="ap-book-pair">
-                    {btcLogo && (
-                      <img
-                        src={btcLogo}
-                        alt=""
-                        className="ap-book-logo"
-                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-                      />
+          <div className="lp-hero-grid">
+            {/* Left */}
+            <div className="lp-hero-left">
+              <div className="lp-hero-badge anim-a1">
+                <span className="lp-hero-badge-dot" />
+                <span>LIVE MARKETS · MULTI-ASSET</span>
+              </div>
+
+              <h1 className="lp-hero-title anim-a2">
+                Multiple markets.<br />
+                <span className="accent">One portfolio.</span>
+              </h1>
+
+              <p className="lp-hero-sub anim-a3">
+                Trade cryptocurrency, forex, equities, and commodities from a single account with real-time analytics.
+              </p>
+
+              {/* Live price pills */}
+              <div className="lp-hero-pills anim-a3">
+                {assets.slice(0, 4).map(a => (
+                  <div key={a.id} className="lp-pill">
+                    {a.icon ? (
+                      <img src={a.icon} alt={a.id} className="lp-pill-ico" />
+                    ) : (
+                      <div className="lp-pill-fb" style={{ background: `${a.color}22`, color: a.color }}>
+                        {a.id.slice(0, 2)}
+                      </div>
                     )}
-                    <span className="ap-live-dot"/>BTC / USD
+                    <span className="lp-pill-sym">{a.id}</span>
+                    <span className={`lp-pill-chg ${a.change >= 0 ? 'pos' : 'neg'}`}>
+                      {a.change >= 0 ? '+' : ''}{a.change.toFixed(2)}%
+                    </span>
                   </div>
-                  <div className="ap-book-px">{book.mid}</div>
-                  <div className={`ap-book-chg ${midChange >= 0 ? 'ap-up' : 'ap-dn'}`}>
-                    {midChange >= 0 ? '▲' : '▼'} {fmtChange(midChange)} today
+                ))}
+              </div>
+
+              <div className="lp-hero-btns anim-a4">
+                <Link to="/signup" className="lp-btn-primary">Create Account</Link>
+                <Link to="/login" className="lp-btn-ghost">Sign In →</Link>
+              </div>
+
+              <div className="lp-hero-stats anim-a5">
+                {[['$4.2B', 'Volume'], ['99.9%', 'Uptime'], ['180K+', 'Traders'], ['200+', 'Instruments']].map(([v, l]) => (
+                  <div key={l} className="lp-stat">
+                    <div className="lp-stat-val">{v}</div>
+                    <div className="lp-stat-lbl">{l}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Right — trading card */}
+            <div className="lp-hero-right anim-aRight">
+              <div className="lp-hero-float lp-float-2">
+                <HeroMiniChart
+                  label="ETH / USD"
+                  value="$3,821.40"
+                  change="+2.14%"
+                  positive={true}
+                />
+              </div>
+              <div className="lp-hero-float lp-float-1">
+                <HeroMiniChart
+                  label="EUR / USD"
+                  value="$1.0842"
+                  change="-0.32%"
+                  positive={false}
+                />
+              </div>
+
+              <div className="lp-card">
+                {/* Card header */}
+                <div className="lp-card-head">
+                  <div className="lp-card-head-left">
+                    <img src="https://assets.coincap.io/assets/icons/btc@2x.png" className="lp-card-ico" alt="BTC" />
+                    <div>
+                      <span className="lp-card-pair">BTC / USD</span>
+                      <span className="lp-card-tag">CRYPTO · PERPETUAL</span>
+                    </div>
+                  </div>
+                  <span className="lp-card-live">
+                    <span className="lp-live-dot" />Live
+                  </span>
+                </div>
+
+                {/* Price */}
+                <div className="lp-card-price">
+                  <div className="lp-card-price-row">
+                    <span className="lp-card-price-val">
+                      {assets[0]?.price > 0
+                        ? `$${assets[0].price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                        : '$104,218.50'}
+                    </span>
+                    <span className="lp-card-price-chg">+1.84%</span>
+                  </div>
+                  <div className="lp-card-stats">
+                    {[['24H High', '$106,400'], ['24H Low', '$102,100'], ['Volume', '$4.2B']].map(([l, v]) => (
+                      <div key={l}>
+                        <div className="lp-card-stat-lbl">{l}</div>
+                        <div className="lp-card-stat-val">{v}</div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-                <div className="ap-book-meta">
-                  <div className="ap-meta-item"><span className="ap-ml">Spread</span><span className="ap-mv">{book.spread}</span></div>
+
+                {/* Chart */}
+                <div className="lp-card-chart">
+                  <svg width="100%" height="56" viewBox="0 0 320 56" preserveAspectRatio="none" fill="none">
+                    <defs>
+                      <linearGradient id="btcGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#34d399" stopOpacity="0.25" />
+                        <stop offset="100%" stopColor="#34d399" stopOpacity="0" />
+                      </linearGradient>
+                    </defs>
+                    <path d="M0,48 L32,38 L64,42 L96,24 L128,30 L160,16 L192,20 L224,8 L256,12 L288,4 L320,8 L320,56 L0,56 Z" fill="url(#btcGrad)" />
+                    <path d="M0,48 L32,38 L64,42 L96,24 L128,30 L160,16 L192,20 L224,8 L256,12 L288,4 L320,8" stroke="#34d399" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    <line x1="320" y1="8" x2="320" y2="56" stroke="#34d399" strokeWidth="1" strokeDasharray="3,3" opacity="0.3" />
+                    <circle cx="320" cy="8" r="3" fill="#34d399" opacity="0.8" />
+                  </svg>
                 </div>
-              </div>
-              <div className="ap-book-cols">
-                <span>PRICE</span><span className="ap-tc">DEPTH</span><span className="ap-tr">SIZE</span>
-              </div>
-              {book.asks.map((r, i) => (
-                <div className="ap-book-row" key={`ask-${i}`}>
-                  <span className="ap-dn">{r.price}</span>
-                  <div className="ap-depth"><div className="ap-dfill ap-dask" style={{ width: `${r.pct}%` }}/></div>
-                  <span className="ap-bsz">{r.size}</span>
+
+                {/* Order book */}
+                <div className="lp-card-book">
+                  <div className="lp-card-book-title">Order Book</div>
+
+                  {asks.slice(0, 3).map((ask, i) => (
+                    <div key={i} className="lp-book-row lp-book-ask">
+                      <div className="lp-book-bar" style={{ width: `${ask.depth}%` }} />
+                      <span className="lp-book-price">{ask.price}</span>
+                      <span className="lp-book-size">{ask.size}</span>
+                    </div>
+                  ))}
+
+                  <div className="lp-book-spread">
+                    <span>Spread: $6.50 · 0.006%</span>
+                  </div>
+
+                  {bids.slice(0, 3).map((bid, i) => (
+                    <div key={i} className="lp-book-row lp-book-bid">
+                      <div className="lp-book-bar" style={{ width: `${bid.depth}%` }} />
+                      <span className="lp-book-price">{bid.price}</span>
+                      <span className="lp-book-size">{bid.size}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-              <div className="ap-spread">
-                <span>SPREAD</span><strong>{book.spread}</strong><span>MID</span><strong>{book.mid}</strong>
-              </div>
-              {book.bids.map((r, i) => (
-                <div className="ap-book-row" key={`bid-${i}`}>
-                  <span className="ap-up">{r.price}</span>
-                  <div className="ap-depth"><div className="ap-dfill ap-dbid" style={{ width: `${r.pct}%` }}/></div>
-                  <span className="ap-bsz">{r.size}</span>
+
+                {/* Quick trade */}
+                <div className="lp-card-actions">
+                  <button className="lp-trade-btn lp-trade-buy">▲ BUY LONG</button>
+                  <button className="lp-trade-btn lp-trade-sell">▼ SELL SHORT</button>
                 </div>
-              ))}
-              <div className="ap-trade-btns">
-                <button className="ap-tbtn ap-tbuy">Buy Market</button>
-                <button className="ap-tbtn ap-tsell">Sell Market</button>
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* ── MARKETS SECTION ── */}
-      <section className="ap-section ap-mkt-sec" id="markets">
-        <div className="ap-mkt-bg">
-          <img
-            src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1400&auto=format&fit=crop&q=70"
-            alt="Global market data network map"
-            className="ap-mkt-bg-img"
-          />
-        </div>
-        <div className="ap-mkt-inner aprx">
-          <p className="ap-label">02 · Markets</p>
-          <h2 className="ap-h2">Everything moves.<br/>Capture it.</h2>
-          <p className="ap-body" style={{ maxWidth: '380px', marginBottom: '28px' }}>
-            180+ instruments across crypto, equities, FX, and commodities.
-          </p>
-          <div className="ap-mkt-table">
-            <div className="ap-mkt-head">
-              <span>Symbol</span><span>Name</span>
-              <span className="ap-tr">Price</span><span className="ap-tr">Change</span>
-            </div>
-            {marketRows.map(m => (
-              <div className="ap-mkt-row" key={m.sym}>
-                <span className="ap-mkt-sym">
-                  {m.logo && (
-                    <img
-                      src={m.logo}
-                      alt=""
-                      className="ap-mkt-logo"
-                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-                    />
-                  )}
-                  {m.sym}
+        {/* ── Ticker ── */}
+        <div className="lp-ticker">
+          <div className="lp-ticker-track">
+            {[...assets, ...assets, ...assets].map((a, i) => (
+              <div key={i} className="lp-ticker-item">
+                <span className="lp-ticker-tag">{a.tag}</span>
+                <span className="lp-ticker-price">
+                  {a.price > 0 ? `$${a.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}
                 </span>
-                <span className="ap-mkt-name">{m.name}</span>
-                <span className="ap-mkt-price ap-tr">{m.price}</span>
-                <span className={`ap-tr ${m.up ? 'ap-up' : 'ap-dn'}`}>{m.chg}</span>
+                <span className={`lp-ticker-chg ${a.change >= 0 ? 'pos' : 'neg'}`}>
+                  {a.change >= 0 ? '+' : ''}{a.change.toFixed(2)}%
+                </span>
+                <span className="lp-ticker-sep">·</span>
               </div>
             ))}
           </div>
-          <Link to="/signup" className="ap-ilink">View all 180+ instruments →</Link>
         </div>
-      </section>
 
-      {/* ── PLATFORM SECTION ── */}
-      <section className="ap-section" id="platform">
-        <div className="ap-platform aprx">
-          <div className="ap-plat-text">
-            <p className="ap-label">01 · Platform</p>
-            <h2 className="ap-h2">Every edge,<br/>engineered.</h2>
-            <p className="ap-body">Six years of iteration toward a single goal — zero friction between your signal and the market.</p>
-            <div className="ap-feat-list">
-              {FEATURES.map(f => (
-                <div className="ap-feat-row" key={f.n}>
-                  <span className="ap-feat-n">{f.n}</span>
+        {/* ── Markets ── */}
+        <section id="markets" className="lp-section">
+          <div className="lp-section-head">
+            <p className="lp-eyebrow">Markets</p>
+            <h2 className="lp-h2">All markets, one account</h2>
+            <p className="lp-section-sub">
+              Access crypto, forex pairs, equities, and commodities — all priced in real time with tight spreads.
+            </p>
+          </div>
+
+          <div className="lp-table">
+            <div className="lp-table-head">
+              <span>Asset</span>
+              <span>Price</span>
+              <span>24h Change</span>
+              <span className="trend-head">Trend</span>
+            </div>
+
+            {assets.map((a, i) => (
+              <div key={a.id} className={`lp-table-row ${i === assets.length - 1 ? 'last' : ''}`}>
+                <div className="lp-asset-cell">
+                  {a.icon ? (
+                    <img src={a.icon} alt={a.id} className="lp-asset-ico" />
+                  ) : (
+                    <div className="lp-asset-fb" style={{ background: `${a.color}18`, color: a.color }}>
+                      {a.id.slice(0, 3)}
+                    </div>
+                  )}
                   <div>
-                    <div className="ap-feat-t">{f.title}</div>
-                    <div className="ap-feat-d">{f.desc}</div>
+                    <div className="lp-asset-sym">{a.sym}</div>
+                    <div className="lp-asset-tag">{a.tag}</div>
+                  </div>
+                </div>
+                <div className="lp-asset-price">
+                  {a.price > 0 ? `$${a.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : <span className="lp-muted">—</span>}
+                </div>
+                <div>
+                  <span className={`lp-chg-badge ${a.change >= 0 ? 'pos' : 'neg'}`}>
+                    {a.change >= 0 ? '+' : ''}{a.change.toFixed(2)}%
+                  </span>
+                </div>
+                <div className="trend-col"><Sparkline positive={a.change >= 0} /></div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ── Features ── */}
+        <section id="features" className="lp-section lp-section-features">
+          <div className="lp-inner">
+            <div className="lp-section-head">
+              <p className="lp-eyebrow">Platform</p>
+              <h2 className="lp-h2">Razor thin spreads</h2>
+            </div>
+
+            <div className="lp-feat-grid">
+              {[
+                { label: 'Execution Speed', body: 'Trades settle in milliseconds across all asset classes. No slippage, no surprises.' },
+                { label: 'Security', body: 'Bank-grade encryption, 2FA, KYC verification, and cold-storage asset custody.' },
+                { label: 'Advanced Charting', body: 'Multi-timeframe charts with 80+ technical indicators across every instrument.' },
+                { label: '200+ Instruments', body: 'Crypto, major and exotic forex pairs, US equities, indices, and commodities.' },
+                { label: 'Transparent Fees', body: 'No hidden commissions. Tight spreads and straightforward pricing on every trade.' },
+                { label: 'Unified Portfolio', body: 'One dashboard. Complete visibility across all your positions in real time.' },
+              ].map(f => (
+                <div key={f.label} className="lp-feat-card">
+                  <div className="lp-feat-label">{f.label}</div>
+                  <div className="lp-feat-body">{f.body}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ── Security ── */}
+        <section id="security" className="lp-security">
+          <div className="lp-security-inner">
+            <div>
+              <p className="lp-security-title">Your assets are protected</p>
+              <p className="lp-security-sub">Industry-standard safeguards across every layer.</p>
+            </div>
+            <div className="lp-security-badges">
+              {['SSL / TLS Encrypted', 'KYC Verified', 'Cold Storage', '2FA Required', 'GDPR Compliant'].map(s => (
+                <span key={s} className="lp-security-badge">{s}</span>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ── Steps ── */}
+        <section className="lp-steps-wrap">
+          <div className="lp-section-head">
+            <p className="lp-eyebrow">Getting Started</p>
+            <h2 className="lp-h2">Start trading in 3 steps</h2>
+          </div>
+
+          <div className="lp-steps">
+            {[
+              { n: '01', title: 'Create Your Account', desc: 'Sign up and complete identity verification in under two minutes.' },
+              { n: '02', title: 'Fund Your Portfolio', desc: 'Deposit via crypto, bank transfer, or card. Reflected in your dashboard instantly.' },
+              { n: '03', title: 'Trade Global Markets', desc: 'Access every instrument from your professional dashboard, live.' },
+            ].map((s, i, arr) => (
+              <div key={s.n} className={`lp-step ${i < arr.length - 1 ? 'bordered' : ''}`}>
+                <div className="lp-step-n">{s.n}</div>
+                <div>
+                  <div className="lp-step-title">{s.title}</div>
+                  <div className="lp-step-desc">{s.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ── CTA ── */}
+        <section className="lp-cta-wrap">
+          <div className="lp-cta">
+            <p className="lp-eyebrow">Ready to trade?</p>
+            <h2 className="lp-cta-title">Join 180,000+ traders worldwide</h2>
+            <p className="lp-cta-sub">
+              Access crypto, forex, stocks, and commodities from one secure, professional platform. Free to start.
+            </p>
+            <Link to="/signup" className="lp-cta-btn">Create Free Account →</Link>
+          </div>
+        </section>
+
+        {/* ── Footer ── */}
+        <footer className="lp-footer">
+          <div className="lp-footer-top">
+            <div>
+              <div className="lp-footer-brand">APEX · MKTS</div>
+              <p className="lp-footer-tag">
+                Multi-asset trading platform for crypto, forex, stocks, and commodities.
+              </p>
+            </div>
+            <div className="lp-footer-cols">
+              {[
+                { title: 'Platform', links: ['Markets', 'Features', 'Security', 'Pricing'] },
+                { title: 'Legal', links: ['Privacy Policy', 'Terms of Use', 'Risk Disclosure', 'AML Policy'] },
+              ].map(col => (
+                <div key={col.title}>
+                  <div className="lp-footer-col-title">{col.title}</div>
+                  <div className="lp-footer-col-links">
+                    {col.links.map(l => <span key={l} className="lp-footer-link">{l}</span>)}
                   </div>
                 </div>
               ))}
             </div>
           </div>
-          <div className="ap-plat-media">
-            <img
-              src="https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=720&auto=format&fit=crop&q=85"
-              alt="Professional trading terminal overview layout"
-              className="ap-plat-img"
-            />
-            <div className="ap-plat-overlay"/>
-            <div className="ap-plat-badge">
-              <span className="ap-live-dot"/><span>Live execution engine</span>
-            </div>
+          <div className="lp-footer-bottom">
+            <p>© 2026 Apex Markets. All rights reserved.</p>
+            <p>Trading involves risk. Only invest what you can afford to lose.</p>
           </div>
-        </div>
-      </section>
-
-      {/* ── CALL TO ACTION SECTION ── */}
-      <section className="ap-section ap-begin-sec" id="begin">
-        <div className="ap-begin-inner aprx">
-          <p className="ap-label">03 · Begin</p>
-          <h2 className="ap-h2">Your edge starts here.</h2>
-          <p className="ap-body" style={{ marginBottom: '32px' }}>
-            Open a funded account in under 5 minutes. No minimums on demo. Live markets from day one.
-          </p>
-          <div className="ap-cta-form">
-            <input className="ap-cta-input" type="email" placeholder="Enter your email address"/>
-            <Link to="/signup" className="ap-cta-submit">Get Started</Link>
-          </div>
-          <div className="ap-trust-badges">
-            {['FCA & CySEC regulated', 'Negative balance protection', '24/5 desk support', 'Spreads from 0.0 pips'].map((b, i) => (
-              <span key={b}>{i > 0 && <span className="ap-dot">·</span>}{b}</span>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── FOOTER ── */}
-      <footer className="ap-footer">
-        <div className="ap-footer-brand">
-          <Logo width={140} height={24} />
-        </div>
-        <ul className="ap-footer-links">
-          {['Web Terminal', 'API Access', 'Careers', 'Privacy', 'Terms', 'Risk Disclosure'].map(l => (
-            <li key={l}><a href="#">{l}</a></li>
-          ))}
-        </ul>
-        <span className="ap-footer-legal">© 2026 Apex Markets Ltd. CFDs carry risk. Capital at risk.</span>
-      </footer>
+        </footer>
+      </main>
     </div>
   );
 }
