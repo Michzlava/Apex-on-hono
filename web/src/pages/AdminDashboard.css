@@ -1,3 +1,131 @@
+/* AdminLayout + AdminDashboard Combined Styles */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ADMIN LAYOUT
+   ═══════════════════════════════════════════════════════════════════════════ */
+.adm-layout { display: flex; min-height: 100vh; background: var(--bg-adm); font-family: var(--sans); color: var(--ink); }
+
+.adm-layout-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 90; }
+
+.adm-sidebar {
+  position: sticky; top: 0; left: 0; bottom: 0;
+  width: 240px; height: 100vh;
+  background: var(--card-adm);
+  border-right: 1px solid var(--line-strong);
+  display: flex; flex-direction: column;
+  z-index: 100;
+  flex-shrink: 0;
+}
+.adm-sidebar.mobile {
+  position: fixed;
+  transform: translateX(-100%);
+  transition: transform 0.25s cubic-bezier(0.32,0.72,0,1);
+}
+.adm-sidebar.mobile.open { transform: translateX(0); }
+
+.adm-sidebar-head { padding: 20px 18px 14px; border-bottom: 1px solid var(--line-strong); }
+.adm-sidebar-head .adm-brand { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.18em; color: var(--accent); text-transform: uppercase; margin: 0; }
+.adm-sidebar-title { font-size: 1.1rem; font-weight: 700; color: var(--ink); margin: 4px 0 0; letter-spacing: -0.02em; }
+.adm-sidebar-close { background: none; border: none; color: var(--ink-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 4px; }
+
+.adm-sidebar-nav { flex: 1; padding: 12px 10px; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; }
+.adm-nav-link { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; text-decoration: none; font-size: 0.78rem; font-weight: 600; color: var(--ink-dim); background: transparent; transition: all 0.12s; }
+.adm-nav-link:hover { background: var(--surface); color: var(--ink); }
+.adm-nav-link.active { color: var(--bg-adm); background: var(--accent); }
+
+.adm-sidebar-foot { padding: 14px 18px; border-top: 1px solid var(--line-strong); }
+.adm-back-link { font-size: 0.7rem; color: var(--ink-faint); text-decoration: none; font-family: var(--mono); }
+
+.adm-main { flex: 1; min-width: 0; min-height: 100vh; overflow-x: hidden; }
+.adm-main-header { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line-strong); background: var(--card-adm); position: sticky; top: 0; z-index: 50; }
+.adm-menu-btn { background: none; border: none; color: var(--ink-dim); cursor: pointer; display: none; padding: 4px; }
+.adm-page-label { font-size: 0.72rem; color: var(--ink-faint); font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.1em; margin: 0; }
+.adm-main-content { padding: 20px 16px 40px; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ADMIN DASHBOARD (Support Chat)
+   ═══════════════════════════════════════════════════════════════════════════ */
+.adm { max-width: 100%; margin: 0 auto; padding: 0; font-family: var(--sans); color: var(--ink); background: transparent; }
+.adm-hdr { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 22px; }
+.adm-brand { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.18em; color: var(--accent); text-transform: uppercase; margin-bottom: 4px; }
+.adm-title { font-size: 1.4rem; font-weight: 700; color: var(--ink); letter-spacing: -0.02em; }
+.adm-bell { position: relative; width: 38px; height: 38px; border-radius: 50%; background: var(--card-adm); border: 1px solid var(--line-strong); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.adm-bell-badge { position: absolute; top: -3px; right: -3px; width: 18px; height: 18px; background: var(--accent); border-radius: 50%; color: var(--bg-adm); font-size: 0.52rem; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+
+.adm-status { font-family: var(--mono); font-size: 0.52rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 8px; border-radius: 20px; display: inline-block; }
+.adm-status.ok { background: var(--green-l); color: var(--green); }
+.adm-status.grey { background: var(--surface); color: var(--ink-faint); }
+.adm-status-btn { display: flex; align-items: center; gap: 5px; font-size: 0.62rem; font-weight: 600; padding: 5px 12px; border-radius: 20px; border: 1px solid var(--line-strong); background: transparent; color: var(--ink-faint); cursor: pointer; transition: all 0.15s; }
+.adm-status-btn:hover { border-color: var(--accent); color: var(--accent); }
+.adm-back-btn { display: none; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink-dim); cursor: pointer; flex-shrink: 0; transition: all 0.12s; }
+.adm-back-btn:hover { background: var(--surface-hover); color: var(--ink); }
+
+.adm-spin { animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.adm-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; color: var(--bg-adm); font-size: 0.7rem; font-weight: 700; flex-shrink: 0; }
+
+/* Chat Grid */
+.adm-chat-grid { display: grid; grid-template-columns: 280px 1fr; gap: 12px; min-height: 600px; }
+.adm-ticket-list { background: var(--card-adm); border: 1px solid var(--line-strong); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; }
+.adm-ticket-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--line-strong); flex-shrink: 0; }
+.adm-ticket-head-title { font-size: 0.75rem; font-weight: 700; color: var(--ink); }
+.adm-ticket-scroll { flex: 1; overflow-y: auto; background: var(--card-adm); }
+.adm-ticket-item { width: 100%; text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--line); background: transparent; border-left: 3px solid transparent; border-right: none; border-top: none; cursor: pointer; transition: background 0.12s, border-left-color 0.12s; display: flex; align-items: flex-start; gap: 10px; min-height: 68px; }
+.adm-ticket-item:hover { background: var(--surface); }
+.adm-ticket-item.sel { background: rgba(56, 189, 248, 0.12); border-left-color: #38bdf8; }
+.adm-ticket-item-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.adm-ticket-item-row1 { display: flex; justify-content: space-between; align-items: center; gap: 4px; }
+
+.adm-thread { background: var(--card-adm); border: 1px solid var(--line-strong); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; min-height: 600px; }
+.adm-thread-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--line-strong); flex-shrink: 0; }
+.adm-thread-msgs { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 4px; min-height: 0; }
+.adm-thread-input { border-top: 1px solid var(--line-strong); padding: 12px 14px; display: flex; gap: 10px; align-items: flex-end; flex-shrink: 0; }
+.adm-textarea { flex: 1; resize: none; background: var(--surface); border: 1.5px solid var(--line-strong); border-radius: 10px; padding: 9px 13px; font-family: var(--sans); font-size: 0.78rem; color: var(--ink); outline: none; transition: all 0.15s; min-height: 40px; max-height: 120px; }
+.adm-textarea:focus { border-color: var(--accent); background: var(--card-adm); }
+.adm-send-btn { width: 38px; height: 38px; border-radius: 10px; background: var(--accent); color: var(--bg-adm); border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: opacity 0.15s; }
+.adm-send-btn:hover { opacity: 0.85; }
+.adm-send-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.adm-msg-row { display: flex; align-items: flex-end; gap: 6px; margin-bottom: 6px; }
+.adm-msg-row.admin { justify-content: flex-end; }
+.adm-msg-col { display: flex; flex-direction: column; max-width: 75%; }
+.adm-msg-col.admin { align-items: flex-end; }
+.adm-msg-col.user { align-items: flex-start; }
+.adm-bubble { width: fit-content; max-width: 100%; padding: 9px 13px; border-radius: 14px; font-size: 0.78rem; line-height: 1.5; word-break: break-word; overflow-wrap: break-word; white-space: pre-wrap; }
+.adm-bubble.user { background: var(--surface); border: 1px solid var(--line-strong); color: var(--ink); border-bottom-left-radius: 4px; }
+.adm-bubble.admin { background: var(--accent); color: var(--bg-adm); border-bottom-right-radius: 4px; }
+.adm-msg-time { font-size: 0.55rem; color: var(--ink-faint); margin-top: 3px; padding: 0 2px; }
+.adm-divider { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
+.adm-divider-line { flex: 1; height: 1px; background: var(--line-strong); }
+.adm-divider-label { font-size: 0.58rem; color: var(--ink-faint); font-weight: 500; }
+
+/* Filter Toggle */
+.adm-filter-toggle { display: flex; gap: 2px; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 8px; padding: 2px; }
+.adm-filter-btn { padding: 4px 10px; border-radius: 6px; border: none; background: transparent; font-family: var(--sans); font-size: 0.6rem; font-weight: 600; color: var(--ink-faint); cursor: pointer; transition: all 0.12s; }
+.adm-filter-btn.active-open { background: var(--accent); color: var(--bg-adm); }
+.adm-filter-btn.active-closed { background: var(--surface-hover); color: var(--ink-dim); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MOBILE RESPONSIVE
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  /* Layout */
+  .adm-menu-btn { display: block; }
+  .adm-main-content { padding: 16px 12px 24px; }
+
+  /* Dashboard */
+  .adm-hdr { margin-bottom: 16px; }
+  .adm-title { font-size: 1.2rem; }
+  .adm-chat-grid { grid-template-columns: 1fr; min-height: auto; gap: 10px; }
+  .adm-ticket-list { min-height: 280px; border-radius: 12px; }
+  .adm-thread { min-height: 380px; border-radius: 12px; }
+  .adm-ticket-list.has-selection { display: none; }
+  .adm-thread.no-selection { display: none; }
+  .adm-back-btn { display: flex !important; }
+}
+
+Found AdminDashboard.css
+
 /* ═══════════════════════════════════════════════════════════════════════════
    ADMIN DEPOSITS & WITHDRAWALS
    ═══════════════════════════════════════════════════════════════════════════ */
