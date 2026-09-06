@@ -11,6 +11,7 @@ import priceRoutes from './routes/price'
 import bonusRoutes from './routes/bonus'
 import assetsRoutes from './routes/assets'
 import withdrawalRoutes from './routes/withdrawals'
+import settingsRoutes from './routes/settings'
 import adminUsersRoutes from './routes/admin-users'
 import { authMiddleware } from './middleware/auth'
 import { createDb } from './db/client'
@@ -55,6 +56,7 @@ app.use('/api/user/*', authMiddleware)
 app.route('/api/user/dashboard', dashboardRoutes)
 app.route('/api/user/deposits', depositRoutes)
 app.route('/api/user/withdrawals', withdrawalRoutes) 
+app.route('/api/user/settings', settingsRoutes)
 
 app.use('/api/assets', authMiddleware)
 app.route('/api/assets', assetsRoutes)
