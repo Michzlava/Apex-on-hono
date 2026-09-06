@@ -104,6 +104,8 @@ export default function DashboardOverview() {
   const [mktTab, setMktTab] = useState<MktTab>('watch');
   const [flash, setFlash] = useState<Record<string, 'up' | 'dn'>>({});
   const [feed, setFeed] = useState<'live' | 'sync'>('sync');
+  const [bonusEligible, setBonusEligible] = useState(false);
+  const [claimingBonus, setClaimingBonus] = useState(false);
   const prevPrices = useRef<Record<string, number>>({});
 
   /* ── user dashboard (unchanged endpoint) ── */
@@ -154,12 +156,40 @@ export default function DashboardOverview() {
     setFeed('sync');
   }, []);
 
+  /* ── bonus eligibility check ── */
+  const checkBonusEligibility = useCallback(async () => {
+    try {
+      const res = await fetch('/api/user/bonus/eligibility', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setBonusEligible(data.eligible);
+      }
+    } catch {}
+  }, []);
+
+  /* ── claim bonus ── */
+  const claimBonus = async () => {
+    setClaimingBonus(true);
+    try {
+      const res = await fetch('/api/user/bonus/claim', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (res.ok) {
+        setBonusEligible(false);
+        fetchDashboard();
+      }
+    } catch {}
+    finally { setClaimingBonus(false); }
+  };
+
   useEffect(() => {
     fetchDashboard();
     fetchMarkets();
+    checkBonusEligibility();
     const id = setInterval(fetchMarkets, 30_000);
     return () => clearInterval(id);
-  }, [fetchDashboard, fetchMarkets]);
+  }, [fetchDashboard, fetchMarkets, checkBonusEligibility]);
 
   /* ── price flash on backend updates ── */
   useEffect(() => {
@@ -306,6 +336,34 @@ export default function DashboardOverview() {
                     {isProfitable ? '+' : ''}{fmt(changePercent)}% · 24H
                   </span>
                 </div>
+
+                {/* ── BONUS CTA ── */}
+                {balance === 0 && bonusEligible && (
+                  <div style={{ marginTop: '16px', textAlign: 'center' }}>
+                    <button
+                      onClick={claimBonus}
+                      disabled={claimingBonus}
+                      style={{
+                        background: 'linear-gradient(135deg, #00D084 0%, #00A86B 100%)',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '12px',
+                        padding: '14px 28px',
+                        fontSize: '0.9rem',
+                        fontWeight: 700,
+                        cursor: claimingBonus ? 'not-allowed' : 'pointer',
+                        opacity: claimingBonus ? 0.7 : 1,
+                        transition: 'all 0.2s',
+                        boxShadow: '0 4px 12px rgba(0, 208, 132, 0.3)',
+                      }}
+                    >
+                      {claimingBonus ? 'Claiming...' : '🎁 Claim $5 Bonus'}
+                    </button>
+                    <p style={{ fontSize: '0.7rem', color: 'var(--ink-faint)', marginTop: '8px' }}>
+                      Start trading with free crypto
+                    </p>
+                  </div>
+                )}
               </div>
               <div className="period-btns">
                 {(['1D', '7D', '1M', '1Y'] as Period[]).map(p => (
@@ -381,7 +439,7 @@ export default function DashboardOverview() {
           {/* ── stat strip (3 cells) ── */}
           <section className="vcard stat-strip">
             <div className="stat-cell">
-              <p className="stat-lbl"><span className="pip pip-acc" />Realised P&amp;L</p>
+              <p className="stat-lbl"><span className="pip pip-acc" />Realised P&L</p>
               <p className={`stat-val ${isProfitable ? 'pos' : 'neg'}`}>
                 {isProfitable ? '+' : ''}{fmt(profit)}
               </p>
