@@ -373,8 +373,7 @@ export default function DashboardOverview() {
                 ))}
               </div>
             </div>
-
-            <div className="hero-chart" onMouseMove={onChartMove} onMouseLeave={() => setHoverIdx(null)}>
+<div className={`hero-chart ${chart?.flat ? 'flat' : ''}`} onMouseMove={onChartMove} onMouseLeave={() => setHoverIdx(null)}>
               {chart && (
                 <>
                   <svg viewBox={`0 0 ${CHART_W} ${CHART_H}`} preserveAspectRatio="none">
