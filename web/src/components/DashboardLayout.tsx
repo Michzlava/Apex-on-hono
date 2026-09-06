@@ -1,160 +1,153 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
-import   Logo  from './Logo';
+import Logo from './Logo';
 import { useAuth } from '../context/AuthContext';
 import '../pages/dashboard.css';
 
+/* ═══════════════════════════════════════════════════════════════════
+   Institutional-style icons (Lucide-derived, 20×20 viewBox)
+   ═══════════════════════════════════════════════════════════════════ */
+const Icons = {
+  overview: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
+    </svg>
+  ),
+  markets: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+    </svg>
+  ),
+  trade: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7 17l10-10M17 17L7 7" />
+      <polyline points="17 7 17 17 7 17" />
+    </svg>
+  ),
+  assets: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" />
+      <path d="M3 5v14a2 2 0 0 0 2 2h16v-5" />
+      <path d="M18 12a2 2 0 0 0 0 4h4v-4Z" />
+    </svg>
+  ),
+  deposit: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3v12" />
+      <path d="m7 10 5 5 5-5" />
+      <path d="M3 21h18" />
+    </svg>
+  ),
+  withdraw: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 19V7" />
+      <path d="m17 12-5-5-5 5" />
+      <path d="M3 3h18" />
+    </svg>
+  ),
+  support: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+    </svg>
+  ),
+  settings: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6" />
+    </svg>
+  ),
+  alerts: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+    </svg>
+  ),
+  kyc: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+      <path d="m9 12 2 2 4-4" />
+    </svg>
+  ),
+  profile: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
+  ),
+  signout: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <polyline points="16 17 21 12 16 7" />
+      <line x1="21" y1="12" x2="9" y2="12" />
+    </svg>
+  ),
+  themeDark: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+    </svg>
+  ),
+  themeLight: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+    </svg>
+  ),
+  chevronRight: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="9 18 15 12 9 6" />
+    </svg>
+  ),
+  chevronLeft: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="15 18 9 12 15 6" />
+    </svg>
+  ),
+  hamburger: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="3" y1="12" x2="21" y2="12" />
+      <line x1="3" y1="6" x2="21" y2="6" />
+      <line x1="3" y1="18" x2="21" y2="18" />
+    </svg>
+  ),
+  close: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  ),
+  more: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="1" fill="currentColor" />
+      <circle cx="12" cy="5" r="1" fill="currentColor" />
+      <circle cx="12" cy="19" r="1" fill="currentColor" />
+    </svg>
+  ),
+};
+
 const navItems = [
-  {
-    to: '/dashboard',
-    label: 'Overview',
-    icon: (
-      <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
-        <rect x="1" y="1" width="5" height="5" stroke="currentColor" strokeWidth="1.1" />
-        <rect x="7" y="1" width="5" height="5" stroke="currentColor" strokeWidth="1.1" />
-        <rect x="1" y="7" width="5" height="5" stroke="currentColor" strokeWidth="1.1" />
-        <rect x="7" y="7" width="5" height="5" stroke="currentColor" strokeWidth="1.1" />
-      </svg>
-    ),
-  },
-  {
-    to: '/dashboard/markets',
-    label: 'Markets',
-    icon: (
-      <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
-        <path d="M1 10l3-4 2.5 2 3.5-5 2 2.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="square" strokeLinejoin="miter" />
-      </svg>
-    ),
-  },
-  {
-    to: '/dashboard/trade',
-    label: 'Trade',
-    icon: (
-      <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
-        <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" strokeWidth="1.1" />
-        <path d="M6.5 4v3l2 1.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="square" />
-      </svg>
-    ),
-  },
-  {
-    to: '/dashboard/assets',
-    label: 'Assets',
-    icon: (
-      <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
-        <path d="M1 10l3-4 2.5 2 3.5-5 2 2.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="square" strokeLinejoin="miter" />
-        <circle cx="6.5" cy="6.5" r="2" stroke="currentColor" strokeWidth="1.1" />
-      </svg>
-    ),
-  },
-  {
-    to: '/dashboard/deposit',
-    label: 'Deposit',
-    icon: (
-      <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
-        <path d="M6.5 1v8M4 7l2.5 2.5L9 7M1 11h11" stroke="currentColor" strokeWidth="1.1" strokeLinecap="square" />
-      </svg>
-    ),
-  },
-  {
-    to: '/dashboard/withdraw',
-    label: 'Withdraw',
-    icon: (
-      <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
-        <path d="M6.5 9V1M4 3l2.5-2.5L9 3M1 11h11" stroke="currentColor" strokeWidth="1.1" strokeLinecap="square" />
-      </svg>
-    ),
-  },
-  {
-    to: '/dashboard/support',
-    label: 'Support',
-    icon: (
-      <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
-        <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" strokeWidth="1.1" />
-        <path d="M6.5 7.5V7c.9 0 1.5-.7 1.5-1.5S7.4 4 6.5 4 5 4.7 5 5.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="square" />
-        <circle cx="6.5" cy="9.5" r="0.6" fill="currentColor" />
-      </svg>
-    ),
-  },
-  {
-    to: '/dashboard/settings',
-    label: 'Settings',
-    icon: (
-      <svg width="13" height="13" viewBox="0 0 20 20" fill="none">
-        <circle cx="10" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.3" />
-        <path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.22 4.22l1.42 1.42M14.36 14.36l1.42 1.42M4.22 15.78l1.42-1.42M14.36 5.64l1.42-1.42" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
-    to: '/dashboard/notifications',
-    label: 'Alerts',
-    icon: (
-      <svg width="13" height="13" viewBox="0 0 20 20" fill="none">
-        <path d="M10 2a6 6 0 0 1 6 6c0 3 1 4 1 4H3s1-1 1-4a6 6 0 0 1 6-6z" stroke="currentColor" strokeWidth="1.3" />
-        <path d="M8.5 16a1.5 1.5 0 0 0 3 0" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
-    to: '/dashboard/kyc',
-    label: 'KYC',
-    icon: (
-      <svg width="13" height="13" viewBox="0 0 20 20" fill="none">
-        <rect x="3" y="5" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.3" />
-        <circle cx="7.5" cy="9.5" r="1.5" stroke="currentColor" strokeWidth="1.1" />
-        <path d="M11 8h4M11 11h3" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
-    to: '/dashboard/subscription',
-    label: 'Investment Plans',
-    icon: (
-      <svg width="13" height="13" viewBox="0 0 20 20" fill="none">
-        <rect x="3" y="4" width="14" height="12" rx="2" stroke="currentColor" strokeWidth="1.3" />
-        <path d="M3 8h14" stroke="currentColor" strokeWidth="1.3" />
-        <circle cx="10" cy="12" r="1.2" fill="currentColor" />
-      </svg>
-    ),
-  },
+  { to: '/dashboard', label: 'Overview', icon: Icons.overview },
+  { to: '/dashboard/markets', label: 'Markets', icon: Icons.markets },
+  { to: '/dashboard/trade', label: 'Trade', icon: Icons.trade },
+  { to: '/dashboard/assets', label: 'Assets', icon: Icons.assets },
+  { to: '/dashboard/deposit', label: 'Deposit', icon: Icons.deposit },
+  { to: '/dashboard/withdraw', label: 'Withdraw', icon: Icons.withdraw },
+  { to: '/dashboard/support', label: 'Support', icon: Icons.support },
+  { to: '/dashboard/settings', label: 'Settings', icon: Icons.settings },
+  { to: '/dashboard/notifications', label: 'Alerts', icon: Icons.alerts },
+  { to: '/dashboard/kyc', label: 'KYC', icon: Icons.kyc },
+  { to: '/dashboard/profile', label: 'Profile', icon: Icons.profile },
 ];
 
-const ChevronRight = () => (
-  <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-    <path d="M3.5 2l3 3-3 3" stroke="currentColor" strokeWidth="1.1" strokeLinecap="square" />
-  </svg>
-);
-
-const HamburgerIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-    <path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-  </svg>
-);
-
-const ChevronLeft = () => (
-  <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-    <path d="M6.5 2l-3 3 3 3" stroke="currentColor" strokeWidth="1.1" strokeLinecap="square" />
-  </svg>
-);
-
-const SunIcon = () => (
-  <svg width="20" height="19" viewBox="0 0 20 20" fill="none">
-    <circle cx="10" cy="10" r="3.5" stroke="currentColor" strokeWidth="1.4" />
-    <path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.22 4.22l1.42 1.42M14.36 14.36l1.42 1.42M4.22 15.78l1.42-1.42M14.36 5.64l1.42-1.42" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-  </svg>
-);
-
-const MoonIcon = () => (
-  <svg width="15" height="15" viewBox="0 0 20 20" fill="none">
-    <path d="M17 12.3A7 7 0 0 1 7.7 3a7 7 0 1 0 9.3 9.3z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
+const SunIcon = Icons.themeLight;
+const MoonIcon = Icons.themeDark;
 
 export default function DashboardLayout() {
   const { signOut } = useAuth();
   const location = useLocation();
   const pathname = location.pathname;
-  
+
   const [moreOpen, setMoreOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
@@ -184,13 +177,18 @@ export default function DashboardLayout() {
   };
 
   const walletActive = pathname === '/dashboard/assets';
-  const moreActive = ['/dashboard/support', '/dashboard/settings', '/dashboard/notifications', '/dashboard/kyc', '/dashboard/subscription'].includes(pathname);
+  const moreActive = [
+    '/dashboard/support',
+    '/dashboard/settings',
+    '/dashboard/notifications',
+    '/dashboard/kyc',
+    '/dashboard/profile',
+  ].includes(pathname);
   const isAdmin = pathname.startsWith('/dashboard/admin');
 
   return (
     <div className="db-shell">
-
-      {/* SIDEBAR — hidden for admin */}
+      {/* SIDEBAR */}
       {!isAdmin && (
         <aside className="db-sidebar">
           <div className="db-sidebar-logo">
@@ -210,13 +208,11 @@ export default function DashboardLayout() {
           </nav>
           <div className="db-sidebar-footer">
             <button className="db-theme-toggle" onClick={toggleTheme}>
-              {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+              {theme === 'dark' ? Icons.themeLight : Icons.themeDark}
               {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
             </button>
             <button className="db-signout" onClick={signOut}>
-              <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
-                <path d="M5 2H2v9h3M8 9l3-2.5L8 4M11 6.5H5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="square" />
-              </svg>
+              {Icons.signout}
               Sign Out
             </button>
           </div>
@@ -228,7 +224,7 @@ export default function DashboardLayout() {
         <div className="db-mobile-bar-left">
           {!isAdmin && (
             <button className="db-hamburger" onClick={() => setSidebarOpen(!sidebarOpen)} aria-label="Toggle menu">
-              <HamburgerIcon />
+              {Icons.hamburger}
             </button>
           )}
           <span className="db-mobile-logo">APEX<span>•</span></span>
@@ -241,16 +237,7 @@ export default function DashboardLayout() {
             title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           >
             <div className="db-theme-switch-knob">
-              {theme === 'dark' ? (
-                <svg width="10" height="10" viewBox="0 0 20 20" fill="none">
-                  <path d="M17 12.3A7 7 0 0 1 7.7 3a7 7 0 1 0 9.3 9.3z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              ) : (
-                <svg width="10" height="10" viewBox="0 0 20 20" fill="none">
-                  <circle cx="10" cy="10" r="3.5" stroke="currentColor" strokeWidth="1.6" />
-                  <path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.22 4.22l1.42 1.42M14.36 14.36l1.42 1.42M4.22 15.78l1.42-1.42M14.36 5.64l1.42-1.42" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-                </svg>
-              )}
+              {theme === 'dark' ? MoonIcon : SunIcon}
             </div>
           </button>
         </div>
@@ -270,16 +257,7 @@ export default function DashboardLayout() {
               title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             >
               <div className="db-theme-switch-knob">
-                {theme === 'dark' ? (
-                  <svg width="10" height="10" viewBox="0 0 20 20" fill="none">
-                    <path d="M17 12.3A7 7 0 0 1 7.7 3a7 7 0 1 0 9.3 9.3z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                ) : (
-                  <svg width="10" height="10" viewBox="0 0 20 20" fill="none">
-                    <circle cx="10" cy="10" r="3.5" stroke="currentColor" strokeWidth="1.6" />
-                    <path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.22 4.22l1.42 1.42M14.36 14.36l1.42 1.42M4.22 15.78l1.42-1.42M14.36 5.64l1.42-1.42" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-                  </svg>
-                )}
+                {theme === 'dark' ? MoonIcon : SunIcon}
               </div>
             </button>
             <span className="db-topbar-sep">·</span>
@@ -304,7 +282,7 @@ export default function DashboardLayout() {
             <div className="db-mobile-sidebar-header">
               <span className="db-mobile-sidebar-logo">APEX<span>•</span>MARKETS</span>
               <button className="db-mobile-sidebar-close" onClick={() => setSidebarOpen(false)} aria-label="Close menu">
-                <ChevronLeft />
+                {Icons.close}
               </button>
             </div>
             <div className="db-mobile-sidebar-content">
@@ -323,14 +301,14 @@ export default function DashboardLayout() {
               ))}
             </div>
             <div className="db-mobile-sidebar-footer">
-              <button 
-                className="db-mobile-sidebar-row" 
+              <button
+                className="db-mobile-sidebar-row"
                 style={{ color: 'var(--red)' }}
                 onClick={() => { setSidebarOpen(false); signOut(); }}
               >
-                <svg width="14" height="14" viewBox="0 0 13 13" fill="none">
-                  <path d="M5 2H2v9h3M8 9l3-2.5L8 4M11 6.5H5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="square" />
-                </svg>
+                <span style={{ display: 'flex', alignItems: 'center' }}>
+                  {Icons.signout}
+                </span>
                 Sign Out
               </button>
             </div>
@@ -343,56 +321,32 @@ export default function DashboardLayout() {
         <>
           <nav className="db-bottom-nav">
             <div className="db-bottom-nav-inner">
-
               <Link to="/dashboard" className={`db-bn-item ${pathname === '/dashboard' ? 'active' : ''}`}>
-                <svg width="18" height="18" viewBox="0 0 13 13" fill="none">
-                  <rect x="1" y="1" width="5" height="5" stroke="currentColor" strokeWidth="1.1" />
-                  <rect x="7" y="1" width="5" height="5" stroke="currentColor" strokeWidth="1.1" />
-                  <rect x="1" y="7" width="5" height="5" stroke="currentColor" strokeWidth="1.1" />
-                  <rect x="7" y="7" width="5" height="5" stroke="currentColor" strokeWidth="1.1" />
-                </svg>
+                {Icons.overview}
                 <span className="db-bn-label">Home</span>
               </Link>
-
               <Link to="/dashboard/markets" className={`db-bn-item ${pathname === '/dashboard/markets' ? 'active' : ''}`}>
-                <svg width="18" height="18" viewBox="0 0 13 13" fill="none">
-                  <path d="M1 10l3-4 2.5 2 3.5-5 2 2.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="square" strokeLinejoin="miter" />
-                </svg>
+                {Icons.markets}
                 <span className="db-bn-label">Markets</span>
               </Link>
-
               <Link to="/dashboard/trade" className={`db-bn-item ${pathname === '/dashboard/trade' ? 'active' : ''}`}>
-                <svg width="18" height="18" viewBox="0 0 13 13" fill="none">
-                  <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" strokeWidth="1.1" />
-                  <path d="M6.5 4v3l2 1.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="square" />
-                </svg>
+                {Icons.trade}
                 <span className="db-bn-label">Trade</span>
               </Link>
-
               <Link to="/dashboard/assets" className={`db-bn-item ${walletActive ? 'active' : ''}`}>
-                <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
-                  <rect x="2" y="5" width="16" height="12" rx="2" stroke="currentColor" strokeWidth="1.3" />
-                  <path d="M2 8h16" stroke="currentColor" strokeWidth="1.3" />
-                  <circle cx="14.5" cy="12" r="1.2" fill="currentColor" />
-                  <path d="M6 3l8 0" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-                </svg>
+                {Icons.assets}
                 <span className="db-bn-label">Wallet</span>
               </Link>
-
               <button
                 className={`db-bn-item ${moreActive ? 'active' : ''}`}
                 onClick={() => setMoreOpen(true)}
               >
-                <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
-                  <circle cx="4" cy="10" r="1.5" fill="currentColor" />
-                  <circle cx="10" cy="10" r="1.5" fill="currentColor" />
-                  <circle cx="16" cy="10" r="1.5" fill="currentColor" />
-                </svg>
+                {Icons.more}
                 <span className="db-bn-label">Account</span>
               </button>
-
             </div>
           </nav>
+
           {/* MORE SHEET */}
           {moreOpen && (
             <>
@@ -407,10 +361,11 @@ export default function DashboardLayout() {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      width: '24px',
-                      height: '24px',
-                      background: 'none',
-                      border: 'none',
+                      width: '28px',
+                      height: '28px',
+                      background: 'var(--bg-3)',
+                      border: '1px solid var(--line-strong)',
+                      borderRadius: '50%',
                       cursor: 'pointer',
                       color: 'var(--red)',
                       padding: '0',
@@ -418,112 +373,73 @@ export default function DashboardLayout() {
                     }}
                     aria-label="Close"
                   >
-                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                      <path d="M1 1l6 6m0 0l6 6M7 7l6-6M7 7L1 13" stroke="currentColor" strokeWidth="1.3" strokeLinecap="square" />
-                    </svg>
+                    {Icons.close}
                   </button>
                 </div>
                 <div className="db-sheet-rows">
                   {/* Theme toggle row */}
-                  <button className="db-sheet-theme-row" onClick={() => { toggleTheme(); }}>
+                  <button className="db-sheet-theme-row" onClick={toggleTheme}>
                     <div className="db-sheet-row-icon" style={{ color: 'var(--ink-dim)' }}>
-                      {theme === 'dark' ? (
-                        <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
-                          <circle cx="10" cy="10" r="3.5" stroke="currentColor" strokeWidth="1.4" />
-                          <path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.22 4.22l1.42 1.42M14.36 14.36l1.42 1.42M4.22 15.78l1.42-1.42M14.36 5.64l1.42-1.42" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-                        </svg>
-                      ) : (
-                        <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
-                          <path d="M17 12.3A7 7 0 0 1 7.7 3a7 7 0 1 0 9.3 9.3z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      )}
+                      {theme === 'dark' ? Icons.themeLight : Icons.themeDark}
                     </div>
                     <div className="db-sheet-row-text">
                       <span className="db-sheet-row-label">Theme</span>
                       <span className="db-sheet-row-sub">Currently {theme === 'dark' ? 'dark' : 'light'} mode</span>
                     </div>
                     <span className="db-sheet-theme-status">{theme === 'dark' ? 'Dark' : 'Light'}</span>
-                    <button 
+                    <button
                       className="db-sheet-theme-toggle-btn"
                       onClick={(e) => { e.stopPropagation(); toggleTheme(); }}
                       aria-label="Toggle theme"
                     >
-                      {theme === 'dark' ? <MoonIcon /> : <SunIcon />}
+                      {theme === 'dark' ? MoonIcon : SunIcon}
                     </button>
                   </button>
                   <div className="db-sheet-row-divider" />
 
-                  <Link to="/dashboard/support" className="db-sheet-row" onClick={() => setMoreOpen(false)}>
-                    <div className="db-sheet-row-icon" style={{ color: 'var(--ink-dim)' }}>
-                      <svg width="14" height="14" viewBox="0 0 13 13" fill="none">
-                        <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" strokeWidth="1.1" />
-                        <path d="M6.5 7.5V7c.9 0 1.5-.7 1.5-1.5S7.4 4 6.5 4 5 4.7 5 5.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="square" />
-                        <circle cx="6.5" cy="9.5" r="0.6" fill="currentColor" />
-                      </svg>
+                  <Link to="/dashboard/profile" className="db-sheet-row" onClick={() => setMoreOpen(false)}>
+                    <div className="db-sheet-row-icon" style={{ color: 'var(--ink-dim)' }}>{Icons.profile}</div>
+                    <div className="db-sheet-row-text">
+                      <span className="db-sheet-row-label">Profile</span>
+                      <span className="db-sheet-row-sub">Your account details</span>
                     </div>
+                    <div className="db-sheet-row-arrow">{Icons.chevronRight}</div>
+                  </Link>
+                  <div className="db-sheet-row-divider" />
+                  <Link to="/dashboard/support" className="db-sheet-row" onClick={() => setMoreOpen(false)}>
+                    <div className="db-sheet-row-icon" style={{ color: 'var(--ink-dim)' }}>{Icons.support}</div>
                     <div className="db-sheet-row-text">
                       <span className="db-sheet-row-label">Support</span>
                       <span className="db-sheet-row-sub">Get help or contact us</span>
                     </div>
-                    <div className="db-sheet-row-arrow"><ChevronRight /></div>
+                    <div className="db-sheet-row-arrow">{Icons.chevronRight}</div>
                   </Link>
                   <div className="db-sheet-row-divider" />
                   <Link to="/dashboard/settings" className="db-sheet-row" onClick={() => setMoreOpen(false)}>
-                    <div className="db-sheet-row-icon" style={{ color: 'var(--ink-dim)' }}>
-                      <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
-                        <circle cx="10" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.3" />
-                        <path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.22 4.22l1.42 1.42M14.36 14.36l1.42 1.42M4.22 15.78l1.42-1.42M14.36 5.64l1.42-1.42" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-                      </svg>
-                    </div>
+                    <div className="db-sheet-row-icon" style={{ color: 'var(--ink-dim)' }}>{Icons.settings}</div>
                     <div className="db-sheet-row-text">
                       <span className="db-sheet-row-label">Settings</span>
-                      <span className="db-sheet-row-sub">Account preferences</span>
+                      <span className="db-sheet-row-sub">Account & security</span>
                     </div>
-                    <div className="db-sheet-row-arrow"><ChevronRight /></div>
+                    <div className="db-sheet-row-arrow">{Icons.chevronRight}</div>
                   </Link>
                   <div className="db-sheet-row-divider" />
                   <Link to="/dashboard/notifications" className="db-sheet-row" onClick={() => setMoreOpen(false)}>
-                    <div className="db-sheet-row-icon" style={{ color: 'var(--ink-dim)' }}>
-                      <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
-                        <path d="M10 2a6 6 0 0 1 6 6c0 3 1 4 1 4H3s1-1 1-4a6 6 0 0 1 6-6z" stroke="currentColor" strokeWidth="1.3" />
-                        <path d="M8.5 16a1.5 1.5 0 0 0 3 0" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-                      </svg>
-                    </div>
+                    <div className="db-sheet-row-icon" style={{ color: 'var(--ink-dim)' }}>{Icons.alerts}</div>
                     <div className="db-sheet-row-text">
                       <span className="db-sheet-row-label">Alerts</span>
-                      <span className="db-sheet-row-sub">Notifications &amp; price alerts</span>
+                      <span className="db-sheet-row-sub">Notifications & price alerts</span>
                     </div>
-                    <div className="db-sheet-row-arrow"><ChevronRight /></div>
+                    <div className="db-sheet-row-arrow">{Icons.chevronRight}</div>
                   </Link>
                   <div className="db-sheet-row-divider" />
                   <Link to="/dashboard/kyc" className="db-sheet-row" onClick={() => setMoreOpen(false)}>
-                    <div className="db-sheet-row-icon" style={{ color: 'var(--ink-dim)' }}>
-                      <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
-                        <rect x="3" y="5" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.3" />
-                        <circle cx="7.5" cy="9.5" r="1.5" stroke="currentColor" strokeWidth="1.1" />
-                        <path d="M11 8h4M11 11h3" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
-                      </svg>
-                    </div>
+                    <div className="db-sheet-row-icon" style={{ color: 'var(--ink-dim)' }}>{Icons.kyc}</div>
                     <div className="db-sheet-row-text">
                       <span className="db-sheet-row-label">KYC</span>
                       <span className="db-sheet-row-sub">Identity verification</span>
                     </div>
-                    <div className="db-sheet-row-arrow"><ChevronRight /></div>
-                  </Link>
-                  <div className="db-sheet-row-divider" />
-                  <Link to="/dashboard/subscription" className="db-sheet-row" onClick={() => setMoreOpen(false)}>
-                    <div className="db-sheet-row-icon" style={{ color: 'var(--ink-dim)' }}>
-                      <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
-                        <rect x="3" y="4" width="14" height="12" rx="2" stroke="currentColor" strokeWidth="1.3" />
-                        <path d="M3 8h14" stroke="currentColor" strokeWidth="1.3" />
-                        <circle cx="10" cy="12" r="1.2" fill="currentColor" />
-                      </svg>
-                    </div>
-                    <div className="db-sheet-row-text">
-                      <span className="db-sheet-row-label">Investment Plans</span>
-                      <span className="db-sheet-row-sub">Manage your plan</span>
-                    </div>
-                    <div className="db-sheet-row-arrow"><ChevronRight /></div>
+                    <div className="db-sheet-row-arrow">{Icons.chevronRight}</div>
                   </Link>
                 </div>
                 <button
@@ -531,9 +447,7 @@ export default function DashboardLayout() {
                   onClick={() => { setMoreOpen(false); signOut(); }}
                 >
                   <div className="db-sheet-row-icon" style={{ color: 'var(--red)' }}>
-                    <svg width="14" height="14" viewBox="0 0 13 13" fill="none">
-                      <path d="M5 2H2v9h3M8 9l3-2.5L8 4M11 6.5H5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="square" />
-                    </svg>
+                    {Icons.signout}
                   </div>
                   <span className="db-sheet-signout-label">Sign Out</span>
                 </button>
@@ -542,7 +456,6 @@ export default function DashboardLayout() {
           )}
         </>
       )}
-
     </div>
   );
 }
