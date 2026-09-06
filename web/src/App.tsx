@@ -12,6 +12,7 @@ import MarketsPage from './pages/MarketsPage'
 import WithdrawPage from './pages/WithdrawPage'
 import ProfilePage from './pages/ProfilePage'
 import SettingsPage from './pages/SettingsPage'
+import KycPage from './pages/KycPage'
 import AdminLoginPage from './pages/AdminLoginPage'
 
 // Admin pages — all in ./pages now
@@ -88,9 +89,9 @@ function AppRoutes() {
           <Route path="trade" element={<TradePage />} />
           <Route path="markets" element={<MarketsPage />} />
           <Route path="withdraw" element={<WithdrawPage />} />
-          <Route path="profile" element={<ProfilePage />} />
-          
-<Route path="settings" element={<SettingsPage />} />
+          <Route path="profile" element={<ProfilePage />} />          
+          <Route path="kyc" element={<KycPage />} />
+          <Route path="settings" element={<SettingsPage />} />
 
           <Route path="*" element={<NotFound />} />
         </Route>
